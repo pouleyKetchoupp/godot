@@ -620,7 +620,7 @@ def find_visual_c_batch_file(env):
     from SCons.Tool.MSCommon.vc import get_default_version, get_host_target, find_batch_file
 
     version = get_default_version(env)
-    (host_platform, target_platform, _) = get_host_target(env)
+    (host_platform, target_platform, _) = get_host_target(env, version)
     return find_batch_file(env, version, host_platform, target_platform)[0]
 
 
