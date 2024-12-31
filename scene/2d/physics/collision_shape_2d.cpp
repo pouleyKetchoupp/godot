@@ -40,7 +40,7 @@ void CollisionShape2D::_shape_changed() {
 }
 
 void CollisionShape2D::_update_in_shape_owner(bool p_xform_only) {
-	collision_object->shape_owner_set_transform(owner_id, get_transform());
+	collision_object->shape_owner_set_transform(owner_id, get_relative_transform_to_parent(collision_object));
 	if (p_xform_only) {
 		return;
 	}
@@ -54,9 +54,23 @@ Color CollisionShape2D::_get_default_debug_color() const {
 	return st ? st->get_debug_collisions_color() : Color();
 }
 
+CollisionObject2D* _get_parent_object_internal(CollisionShape2D* collision_shape) {
+	CollisionObject2D* collision_object = nullptr;
+	Node* parent = collision_shape->get_parent();
+	while (parent) {
+		collision_object = Object::cast_to<CollisionObject2D>(parent);
+		if (collision_object)
+			break;
+		else
+			parent = parent->get_parent();
+	}
+	return collision_object;
+}
+
 void CollisionShape2D::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_PARENTED: {
+			// Only the direct parent is initialized at this point
 			collision_object = Object::cast_to<CollisionObject2D>(get_parent());
 			if (collision_object) {
 				owner_id = collision_object->create_shape_owner(this);
@@ -68,7 +82,17 @@ void CollisionShape2D::_notification(int p_what) {
 		} break;
 
 		case NOTIFICATION_ENTER_TREE: {
-			if (collision_object) {
+			if (!collision_object) {
+				// Try to find an indirect parent from the tree
+				collision_object = _get_parent_object_internal(this);
+				if (collision_object) {
+					owner_id = collision_object->create_shape_owner(this);
+					if (shape.is_valid()) {
+						collision_object->shape_owner_add_shape(owner_id, shape);
+					}
+					_update_in_shape_owner();
+				}
+			} else {
 				_update_in_shape_owner();
 			}
 		} break;
