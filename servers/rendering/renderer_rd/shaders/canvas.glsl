@@ -290,6 +290,7 @@ vec2 sdf_to_screen_uv(vec2 p_sdf) {
 #ifdef LIGHT_CODE_USED
 
 vec4 light_compute(
+		vec3 light_index,
 		vec3 light_vertex,
 		vec3 light_position,
 		vec3 normal,
@@ -616,7 +617,7 @@ void main() {
 #ifdef LIGHT_CODE_USED
 
 		vec4 shadow_modulate = vec4(1.0);
-		light_color = light_compute(light_vertex, vec3(direction, light_array.data[light_base].height), normal, light_color, light_color.a, specular_shininess, shadow_modulate, screen_uv, uv, base_color, true);
+		light_color = light_compute(light_base, light_vertex, vec3(direction, light_array.data[light_base].height), normal, light_color, light_color.a, specular_shininess, shadow_modulate, screen_uv, uv, base_color, true);
 #else
 
 		if (normal_used) {
@@ -673,7 +674,7 @@ void main() {
 		vec3 light_position = vec3(light_array.data[light_base].position, light_array.data[light_base].height);
 
 		light_color.rgb *= light_base_color.rgb;
-		light_color = light_compute(light_vertex, light_position, normal, light_color, light_base_color.a, specular_shininess, shadow_modulate, screen_uv, uv, base_color, false);
+		light_color = light_compute(light_base, light_vertex, light_position, normal, light_color, light_base_color.a, specular_shininess, shadow_modulate, screen_uv, uv, base_color, false);
 #else
 
 		light_color.rgb *= light_base_color.rgb * light_base_color.a;

@@ -2599,6 +2599,7 @@ RendererCanvasRenderRD::RendererCanvasRenderRD() {
 		actions.renames["CUSTOM0"] = "custom0";
 		actions.renames["CUSTOM1"] = "custom1";
 
+		actions.renames["LIGHT_INDEX"] = "light_index";
 		actions.renames["LIGHT_POSITION"] = "light_position";
 		actions.renames["LIGHT_DIRECTION"] = "light_direction";
 		actions.renames["LIGHT_IS_DIRECTIONAL"] = "is_directional";

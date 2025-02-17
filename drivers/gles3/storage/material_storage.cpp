@@ -1165,6 +1165,7 @@ MaterialStorage::MaterialStorage() {
 		actions.renames["CUSTOM0"] = "custom0";
 		actions.renames["CUSTOM1"] = "custom1";
 
+		actions.renames["LIGHT_INDEX"] = "light_index";
 		actions.renames["LIGHT_POSITION"] = "light_position";
 		actions.renames["LIGHT_DIRECTION"] = "light_direction";
 		actions.renames["LIGHT_IS_DIRECTIONAL"] = "is_directional";
@@ -1293,8 +1294,11 @@ MaterialStorage::MaterialStorage() {
 		//for light
 		actions.renames["VIEW"] = "view";
 		actions.renames["SPECULAR_AMOUNT"] = "specular_amount";
+		actions.renames["LIGHT_INDEX"] = "light_index";
 		actions.renames["LIGHT_COLOR"] = "light_color";
 		actions.renames["LIGHT_IS_DIRECTIONAL"] = "is_directional";
+		actions.renames["LIGHT_HAS_DIRECTION"] = "light_has_direction";
+		actions.renames["LIGHT_HAS_RANGE"] = "light_has_range";
 		actions.renames["LIGHT"] = "light";
 		actions.renames["ATTENUATION"] = "attenuation";
 		actions.renames["DIFFUSE_LIGHT"] = "diffuse_light";
