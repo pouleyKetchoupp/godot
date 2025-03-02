@@ -1255,8 +1255,13 @@ void AnimationTrackEditTypeAnimation::draw_key(int p_index, float p_pixels_sec, 
 		int from_x = MAX(pixel_begin, p_clip_left);
 		int to_x = MIN(pixel_end, p_clip_right);
 
-		if (to_x <= from_x) {
+		if (to_x < from_x) {
 			return;
+		}
+
+		const int min_pixel_size = 5;
+		if (to_x == from_x) {
+			to_x = from_x + min_pixel_size;
 		}
 
 		Ref<Font> font = get_theme_font(SceneStringName(font), SNAME("Label"));
@@ -1300,8 +1305,8 @@ void AnimationTrackEditTypeAnimation::draw_key(int p_index, float p_pixels_sec, 
 			RS::get_singleton()->canvas_item_add_multiline(get_canvas_item(), points, colors);
 		}
 
-		int limit = to_x - from_x - 4;
-		if (limit > 0) {
+		const int limit = to_x - from_x - min_pixel_size;
+		if (limit >= 0) {
 			draw_string(font, Point2(from_x + 2, int(get_size().height - font->get_height(font_size)) / 2 + font->get_ascent(font_size)), anim, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color);
 		}
 
