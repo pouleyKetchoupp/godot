@@ -1685,8 +1685,8 @@ void AnimationMixer::_blend_process(double p_delta, bool p_update_only) {
 								break;
 						}
 						if (player2->is_playing() || !is_external_seeking) {
-							player2->seek(at_anim_pos, false, p_update_only);
 							player2->play(anim_name);
+							player2->seek(at_anim_pos, false, p_update_only);
 							t->playing = true;
 							playing_caches.insert(t);
 						} else {
