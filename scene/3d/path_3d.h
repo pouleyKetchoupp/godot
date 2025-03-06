@@ -82,6 +82,7 @@ private:
 	bool cubic = true;
 	bool loop = true;
 	bool tilt_enabled = true;
+	bool twist_enabled = true;
 	bool transform_dirty = true;
 	bool use_model_front = false;
 	RotationMode rotation_mode = ROTATION_XYZ;
@@ -112,6 +113,9 @@ public:
 
 	void set_tilt_enabled(bool p_enabled);
 	bool is_tilt_enabled() const;
+
+	void set_twist_enabled(bool p_enabled);
+	bool is_twist_enabled() const;
 
 	void set_rotation_mode(RotationMode p_rotation_mode);
 	RotationMode get_rotation_mode() const;

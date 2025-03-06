@@ -869,7 +869,7 @@ void Curve2D::_bake() const {
 		Vector2 *bpw = baked_point_cache.ptrw();
 		Vector2 *bfw = baked_forward_vector_cache.ptrw();
 
-		// Collect positions and sample tilts and tangents for each baked points.
+		// Collect positions and sample tangents for each baked points.
 		bpw[0] = points[0].position;
 		bfw[0] = _calculate_tangent(points[0].position, points[0].position + points[0].out, points[1].position + points[1].in, points[1].position, 0.0);
 		int pidx = 0;
@@ -1422,6 +1422,18 @@ real_t Curve3D::get_point_tilt(int p_index) const {
 	return points[p_index].tilt;
 }
 
+void Curve3D::set_point_twist(int p_index, real_t p_twist) {
+	ERR_FAIL_INDEX(p_index, points.size());
+
+	points.write[p_index].twist = p_twist;
+	mark_dirty();
+}
+
+real_t Curve3D::get_point_twist(int p_index) const {
+	ERR_FAIL_INDEX_V(p_index, points.size(), 0);
+	return points[p_index].twist;
+}
+
 void Curve3D::set_point_in(int p_index, const Vector3 &p_in) {
 	ERR_FAIL_INDEX(p_index, points.size());
 
@@ -1560,6 +1572,7 @@ void Curve3D::_bake() const {
 #endif
 		baked_point_cache.clear();
 		baked_tilt_cache.clear();
+		baked_twist_cache.clear();
 		baked_dist_cache.clear();
 
 		baked_forward_vector_cache.clear();
@@ -1577,6 +1590,8 @@ void Curve3D::_bake() const {
 		baked_point_cache.set(0, points[0].position);
 		baked_tilt_cache.resize(1);
 		baked_tilt_cache.set(0, points[0].tilt);
+		baked_twist_cache.resize(1);
+		baked_twist_cache.set(0, points[0].twist);
 		baked_dist_cache.resize(1);
 		baked_dist_cache.set(0, 0.0);
 		baked_forward_vector_cache.resize(1);
@@ -1612,17 +1627,20 @@ void Curve3D::_bake() const {
 
 		baked_point_cache.resize(pc);
 		baked_tilt_cache.resize(pc);
+		baked_twist_cache.resize(pc);
 		baked_dist_cache.resize(pc);
 		baked_forward_vector_cache.resize(pc);
 
 		Vector3 *bpw = baked_point_cache.ptrw();
-		real_t *btw = baked_tilt_cache.ptrw();
+		real_t *btiw = baked_tilt_cache.ptrw();
+		real_t *btww = baked_twist_cache.ptrw();
 		Vector3 *bfw = baked_forward_vector_cache.ptrw();
 
-		// Collect positions and sample tilts and tangents for each baked points.
+		// Collect positions and sample tilts, twists and tangents for each baked points.
 		bpw[0] = points[0].position;
 		bfw[0] = _calculate_tangent(points[0].position, points[0].position + points[0].out, points[1].position + points[1].in, points[1].position, 0.0);
-		btw[0] = points[0].tilt;
+		btiw[0] = points[0].tilt;
+		btww[0] = points[0].twist;
 		int pidx = 0;
 
 		for (int i = 0; i < points.size() - 1; i++) {
@@ -1630,13 +1648,15 @@ void Curve3D::_bake() const {
 				pidx++;
 				bpw[pidx] = E.value;
 				bfw[pidx] = _calculate_tangent(points[i].position, points[i].position + points[i].out, points[i + 1].position + points[i + 1].in, points[i + 1].position, E.key);
-				btw[pidx] = Math::lerp(points[i].tilt, points[i + 1].tilt, E.key);
+				btiw[pidx] = Math::lerp(points[i].tilt, points[i + 1].tilt, E.key);
+				btww[pidx] = Math::lerp(points[i].twist, points[i + 1].twist, E.key);
 			}
 
 			pidx++;
 			bpw[pidx] = points[i + 1].position;
 			bfw[pidx] = _calculate_tangent(points[i].position, points[i].position + points[i].out, points[i + 1].position + points[i + 1].in, points[i + 1].position, 1.0);
-			btw[pidx] = points[i + 1].tilt;
+			btiw[pidx] = points[i + 1].tilt;
+			btww[pidx] = points[i + 1].twist;
 		}
 
 		// Recalculate the baked distances.
@@ -1811,6 +1831,18 @@ real_t Curve3D::_sample_baked_tilt(Interval p_interval) const {
 	return Math::lerp(r[idx], r[idx + 1], frac);
 }
 
+real_t Curve3D::_sample_baked_twist(Interval p_interval) const {
+	// Assuming that p_interval is valid.
+	ERR_FAIL_INDEX_V_MSG(p_interval.idx, baked_twist_cache.size(), 0.0, "Invalid interval");
+
+	int idx = p_interval.idx;
+	real_t frac = p_interval.frac;
+
+	const real_t *r = baked_twist_cache.ptr();
+
+	return Math::lerp(r[idx], r[idx + 1], frac);
+}
+
 // Internal method for getting posture at a baked point. Assuming caller
 // make all safety checks.
 Basis Curve3D::_compose_posture(int p_index) const {
@@ -1827,7 +1859,7 @@ Basis Curve3D::_compose_posture(int p_index) const {
 	return frame;
 }
 
-Basis Curve3D::_sample_posture(Interval p_interval, bool p_apply_tilt) const {
+Basis Curve3D::_sample_posture(Interval p_interval, bool p_apply_tilt, bool p_apply_twist) const {
 	// Assuming that p_interval is valid.
 	ERR_FAIL_INDEX_V_MSG(p_interval.idx, baked_point_cache.size(), Basis(), "Invalid interval");
 	if (up_vector_enabled) {
@@ -1840,23 +1872,26 @@ Basis Curve3D::_sample_posture(Interval p_interval, bool p_apply_tilt) const {
 	// Get frames at both ends of the interval, then interpolate.
 	const Basis frame_begin = _compose_posture(idx);
 	const Basis frame_end = _compose_posture(idx + 1);
-	const Basis frame = frame_begin.slerp(frame_end, frac).orthonormalized();
+	Basis frame = frame_begin.slerp(frame_end, frac).orthonormalized();
 
-	if (!p_apply_tilt) {
-		return frame;
+	if (p_apply_tilt) {
+		const real_t tilt = _sample_baked_tilt(p_interval);
+		Vector3 tilt_axis = -frame.get_column(2);
+		frame.rotate(tilt_axis, tilt);
 	}
 
-	// Applying tilt.
-	const real_t tilt = _sample_baked_tilt(p_interval);
-	Vector3 tangent = -frame.get_column(2);
+	if (p_apply_twist) {
+		const real_t twist = _sample_baked_twist(p_interval);
+		Vector3 twist_axis = frame.get_column(1);
+		frame.rotate(twist_axis, twist);
+	}
 
-	const Basis twist(tangent, tilt);
-	return twist * frame;
+	return frame;
 }
 
 #ifdef TOOLS_ENABLED
 // Get posture at a control point. Needed for Gizmo implementation.
-Basis Curve3D::get_point_baked_posture(int p_index, bool p_apply_tilt) const {
+Basis Curve3D::get_point_baked_posture(int p_index, bool p_apply_tilt, bool p_apply_twist) const {
 	if (baked_cache_dirty) {
 		_bake();
 	}
@@ -1867,16 +1902,19 @@ Basis Curve3D::get_point_baked_posture(int p_index, bool p_apply_tilt) const {
 	int baked_idx = points_in_cache[p_index];
 	Basis frame = _compose_posture(baked_idx);
 
-	if (!p_apply_tilt) {
-		return frame;
+	if (p_apply_tilt) {
+		const real_t tilt = points[p_index].tilt;
+		Vector3 tilt_axis = -frame.get_column(2);
+		frame.rotate(tilt_axis, tilt);
 	}
 
-	// Applying tilt.
-	const real_t tilt = points[p_index].tilt;
-	Vector3 tangent = -frame.get_column(2);
-	const Basis twist(tangent, tilt);
+	if (p_apply_twist) {
+		const real_t twist = points[p_index].twist;
+		Vector3 twist_axis = frame.get_column(1);
+		frame.rotate(twist_axis, twist);
+	}
 
-	return twist * frame;
+	return frame;
 }
 #endif
 
@@ -1899,7 +1937,7 @@ Vector3 Curve3D::sample_baked(real_t p_offset, bool p_cubic) const {
 	return _sample_baked(interval, p_cubic);
 }
 
-Transform3D Curve3D::sample_baked_with_rotation(real_t p_offset, bool p_cubic, bool p_apply_tilt) const {
+Transform3D Curve3D::sample_baked_with_rotation(real_t p_offset, bool p_cubic, bool p_apply_tilt, bool p_apply_twist) const {
 	if (baked_cache_dirty) {
 		_bake();
 	}
@@ -1923,7 +1961,7 @@ Transform3D Curve3D::sample_baked_with_rotation(real_t p_offset, bool p_cubic, b
 	Vector3 pos = _sample_baked(interval, p_cubic);
 
 	// 2. Sample rotation frame.
-	Basis frame = _sample_posture(interval, p_apply_tilt);
+	Basis frame = _sample_posture(interval, p_apply_tilt, p_apply_twist);
 
 	return Transform3D(frame, pos);
 }
@@ -1945,6 +1983,25 @@ real_t Curve3D::sample_baked_tilt(real_t p_offset) const {
 
 	Curve3D::Interval interval = _find_interval(p_offset);
 	return _sample_baked_tilt(interval);
+}
+
+real_t Curve3D::sample_baked_twist(real_t p_offset) const {
+	if (baked_cache_dirty) {
+		_bake();
+	}
+
+	// Validate: Curve may not have baked twists.
+	int pc = baked_twist_cache.size();
+	ERR_FAIL_COND_V_MSG(pc == 0, 0, "No twists in Curve3D.");
+
+	if (pc == 1) {
+		return baked_twist_cache.get(0);
+	}
+
+	p_offset = CLAMP(p_offset, 0.0, get_baked_length()); // PathFollower implement wrapping logic
+
+	Curve3D::Interval interval = _find_interval(p_offset);
+	return _sample_baked_twist(interval);
 }
 
 Vector3 Curve3D::sample_baked_up_vector(real_t p_offset, bool p_apply_tilt) const {
@@ -1980,6 +2037,14 @@ Vector<real_t> Curve3D::get_baked_tilts() const {
 	}
 
 	return baked_tilt_cache;
+}
+
+Vector<real_t> Curve3D::get_baked_twists() const {
+	if (baked_cache_dirty) {
+		_bake();
+	}
+
+	return baked_twist_cache;
 }
 
 PackedVector3Array Curve3D::get_baked_up_vectors() const {
@@ -2099,19 +2164,23 @@ Dictionary Curve3D::_get_data() const {
 	PackedVector3Array d;
 	d.resize(points.size() * 3);
 	Vector3 *w = d.ptrw();
-	Vector<real_t> t;
-	t.resize(points.size());
-	real_t *wt = t.ptrw();
+	Vector<real_t> ti, tw;
+	ti.resize(points.size());
+	tw.resize(points.size());
+	real_t *wti = ti.ptrw();
+	real_t *wtw = tw.ptrw();
 
 	for (int i = 0; i < points.size(); i++) {
 		w[i * 3 + 0] = points[i].in;
 		w[i * 3 + 1] = points[i].out;
 		w[i * 3 + 2] = points[i].position;
-		wt[i] = points[i].tilt;
+		wti[i] = points[i].tilt;
+		wtw[i] = points[i].twist;
 	}
 
 	dc["points"] = d;
-	dc["tilts"] = t;
+	dc["tilts"] = ti;
+	dc["twists"] = tw;
 
 	return dc;
 }
@@ -2119,6 +2188,7 @@ Dictionary Curve3D::_get_data() const {
 void Curve3D::_set_data(const Dictionary &p_data) {
 	ERR_FAIL_COND(!p_data.has("points"));
 	ERR_FAIL_COND(!p_data.has("tilts"));
+	ERR_FAIL_COND(!p_data.has("twists"));
 
 	PackedVector3Array rp = p_data["points"];
 	int pc = rp.size();
@@ -2129,14 +2199,17 @@ void Curve3D::_set_data(const Dictionary &p_data) {
 		points.resize(new_size);
 	}
 	const Vector3 *r = rp.ptr();
-	Vector<real_t> rtl = p_data["tilts"];
-	const real_t *rt = rtl.ptr();
+	Vector<real_t> rtil = p_data["tilts"];
+	const real_t *rti = rtil.ptr();
+	Vector<real_t> rtwl = p_data["twists"];
+	const real_t *rtw = rtwl.ptr();
 
 	for (int i = 0; i < points.size(); i++) {
 		points.write[i].in = r[i * 3 + 0];
 		points.write[i].out = r[i * 3 + 1];
 		points.write[i].position = r[i * 3 + 2];
-		points.write[i].tilt = rt[i];
+		points.write[i].tilt = rti[i];
+		points.write[i].twist = rtw[i];
 	}
 
 	mark_dirty();
@@ -2241,6 +2314,9 @@ bool Curve3D::_set(const StringName &p_name, const Variant &p_value) {
 		} else if (property == "tilt") {
 			set_point_tilt(point_index, p_value);
 			return true;
+		} else if (property == "twist") {
+			set_point_twist(point_index, p_value);
+			return true;
 		}
 	}
 	return false;
@@ -2262,6 +2338,9 @@ bool Curve3D::_get(const StringName &p_name, Variant &r_ret) const {
 			return true;
 		} else if (property == "tilt") {
 			r_ret = get_point_tilt(point_index);
+			return true;
+		} else if (property == "twist") {
+			r_ret = get_point_twist(point_index);
 			return true;
 		}
 	}
@@ -2289,6 +2368,10 @@ void Curve3D::_get_property_list(List<PropertyInfo> *p_list) const {
 		pi = PropertyInfo(Variant::FLOAT, vformat("point_%d/tilt", i));
 		pi.usage &= ~PROPERTY_USAGE_STORAGE;
 		p_list->push_back(pi);
+
+		pi = PropertyInfo(Variant::FLOAT, vformat("point_%d/twist", i));
+		pi.usage &= ~PROPERTY_USAGE_STORAGE;
+		p_list->push_back(pi);
 	}
 }
 
@@ -2300,6 +2383,8 @@ void Curve3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_point_position", "idx"), &Curve3D::get_point_position);
 	ClassDB::bind_method(D_METHOD("set_point_tilt", "idx", "tilt"), &Curve3D::set_point_tilt);
 	ClassDB::bind_method(D_METHOD("get_point_tilt", "idx"), &Curve3D::get_point_tilt);
+	ClassDB::bind_method(D_METHOD("set_point_twist", "idx", "twist"), &Curve3D::set_point_twist);
+	ClassDB::bind_method(D_METHOD("get_point_twist", "idx"), &Curve3D::get_point_twist);
 	ClassDB::bind_method(D_METHOD("set_point_in", "idx", "position"), &Curve3D::set_point_in);
 	ClassDB::bind_method(D_METHOD("get_point_in", "idx"), &Curve3D::get_point_in);
 	ClassDB::bind_method(D_METHOD("set_point_out", "idx", "position"), &Curve3D::set_point_out);
@@ -2316,10 +2401,11 @@ void Curve3D::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("get_baked_length"), &Curve3D::get_baked_length);
 	ClassDB::bind_method(D_METHOD("sample_baked", "offset", "cubic"), &Curve3D::sample_baked, DEFVAL(0.0), DEFVAL(false));
-	ClassDB::bind_method(D_METHOD("sample_baked_with_rotation", "offset", "cubic", "apply_tilt"), &Curve3D::sample_baked_with_rotation, DEFVAL(0.0), DEFVAL(false), DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("sample_baked_with_rotation", "offset", "cubic", "apply_tilt", "apply_twist"), &Curve3D::sample_baked_with_rotation, DEFVAL(0.0), DEFVAL(false), DEFVAL(false), DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("sample_baked_up_vector", "offset", "apply_tilt"), &Curve3D::sample_baked_up_vector, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("get_baked_points"), &Curve3D::get_baked_points);
 	ClassDB::bind_method(D_METHOD("get_baked_tilts"), &Curve3D::get_baked_tilts);
+	ClassDB::bind_method(D_METHOD("get_baked_twists"), &Curve3D::get_baked_twists);
 	ClassDB::bind_method(D_METHOD("get_baked_up_vectors"), &Curve3D::get_baked_up_vectors);
 	ClassDB::bind_method(D_METHOD("get_closest_point", "to_point"), &Curve3D::get_closest_point);
 	ClassDB::bind_method(D_METHOD("get_closest_offset", "to_point"), &Curve3D::get_closest_offset);

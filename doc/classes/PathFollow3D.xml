@@ -43,6 +43,9 @@
 		<member name="tilt_enabled" type="bool" setter="set_tilt_enabled" getter="is_tilt_enabled" default="true">
 			If [code]true[/code], the tilt property of [Curve3D] takes effect.
 		</member>
+		<member name="twist_enabled" type="bool" setter="set_twist_enabled" getter="is_twist_enabled" default="true">
+			If [code]true[/code], the twist property of [Curve3D] takes effect.
+		</member>
 		<member name="use_model_front" type="bool" setter="set_use_model_front" getter="is_using_model_front" default="false">
 			If [code]true[/code], the node moves on the travel path with orienting the +Z axis as forward. See also [constant Vector3.FORWARD] and [constant Vector3.MODEL_FRONT].
 		</member>

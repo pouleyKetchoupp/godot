@@ -256,6 +256,7 @@ class Curve3D : public Resource {
 		Vector3 out;
 		Vector3 position;
 		real_t tilt = 0.0;
+		real_t twist = 0.0;
 	};
 
 	Vector<Point> points;
@@ -267,6 +268,7 @@ class Curve3D : public Resource {
 	mutable bool baked_cache_dirty = false;
 	mutable PackedVector3Array baked_point_cache;
 	mutable Vector<real_t> baked_tilt_cache;
+	mutable Vector<real_t> baked_twist_cache;
 	mutable PackedVector3Array baked_up_vector_cache;
 	mutable PackedVector3Array baked_forward_vector_cache;
 	mutable Vector<real_t> baked_dist_cache;
@@ -284,7 +286,8 @@ class Curve3D : public Resource {
 	Interval _find_interval(real_t p_offset) const;
 	Vector3 _sample_baked(Interval p_interval, bool p_cubic) const;
 	real_t _sample_baked_tilt(Interval p_interval) const;
-	Basis _sample_posture(Interval p_interval, bool p_apply_tilt = false) const;
+	real_t _sample_baked_twist(Interval p_interval) const;
+	Basis _sample_posture(Interval p_interval, bool p_apply_tilt = false, bool p_apply_twist = false) const;
 	Basis _compose_posture(int p_index) const;
 
 	real_t bake_interval = 0.2;
@@ -310,7 +313,7 @@ protected:
 public:
 #ifdef TOOLS_ENABLED
 	// For Path3DGizmo.
-	Basis get_point_baked_posture(int p_index, bool p_apply_tilt = false) const;
+	Basis get_point_baked_posture(int p_index, bool p_apply_tilt = false, bool p_apply_twist = false) const;
 #endif
 
 	int get_point_count() const;
@@ -320,6 +323,8 @@ public:
 	Vector3 get_point_position(int p_index) const;
 	void set_point_tilt(int p_index, real_t p_tilt);
 	real_t get_point_tilt(int p_index) const;
+	void set_point_twist(int p_index, real_t p_twist);
+	real_t get_point_twist(int p_index) const;
 	void set_point_in(int p_index, const Vector3 &p_in);
 	Vector3 get_point_in(int p_index) const;
 	void set_point_out(int p_index, const Vector3 &p_out);
@@ -337,11 +342,13 @@ public:
 
 	real_t get_baked_length() const;
 	Vector3 sample_baked(real_t p_offset, bool p_cubic = false) const;
-	Transform3D sample_baked_with_rotation(real_t p_offset, bool p_cubic = false, bool p_apply_tilt = false) const;
+	Transform3D sample_baked_with_rotation(real_t p_offset, bool p_cubic = false, bool p_apply_tilt = false, bool p_apply_twist = false) const;
 	real_t sample_baked_tilt(real_t p_offset) const;
+	real_t sample_baked_twist(real_t p_offset) const;
 	Vector3 sample_baked_up_vector(real_t p_offset, bool p_apply_tilt = false) const;
 	PackedVector3Array get_baked_points() const; // Useful for going through.
 	Vector<real_t> get_baked_tilts() const; //useful for going through
+	Vector<real_t> get_baked_twists() const; //useful for going through
 	PackedVector3Array get_baked_up_vectors() const;
 	Vector3 get_closest_point(const Vector3 &p_to_point) const;
 	real_t get_closest_offset(const Vector3 &p_to_point) const;

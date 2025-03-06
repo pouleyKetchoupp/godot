@@ -53,7 +53,7 @@ String Path3DGizmo::get_handle_name(int p_id, bool p_secondary) const {
 		return TTR("Curve Point #") + itos(p_id);
 	}
 
-	// Secondary handles: in, out, tilt.
+	// Secondary handles: in, out, tilt, twist.
 	const HandleInfo info = _secondary_handles_info[p_id];
 	switch (info.type) {
 		case HandleType::HANDLE_TYPE_IN:
@@ -62,6 +62,8 @@ String Path3DGizmo::get_handle_name(int p_id, bool p_secondary) const {
 			return TTR("Handle Out #") + itos(info.point_idx);
 		case HandleType::HANDLE_TYPE_TILT:
 			return TTR("Handle Tilt #") + itos(info.point_idx);
+		case HandleType::HANDLE_TYPE_TWIST:
+			return TTR("Handle Twist #") + itos(info.point_idx);
 	}
 
 	return "";
@@ -79,12 +81,14 @@ Variant Path3DGizmo::get_handle_value(int p_id, bool p_secondary) const {
 		return original;
 	}
 
-	// Secondary handles: in, out, tilt.
+	// Secondary handles: in, out, tilt, twist.
 	const HandleInfo info = _secondary_handles_info[p_id];
 	Vector3 ofs;
 	switch (info.type) {
 		case HandleType::HANDLE_TYPE_TILT:
 			return c->get_point_tilt(info.point_idx);
+		case HandleType::HANDLE_TYPE_TWIST:
+			return c->get_point_twist(info.point_idx);
 		case HandleType::HANDLE_TYPE_IN:
 			ofs = c->get_point_in(info.point_idx);
 			break;
@@ -138,7 +142,7 @@ void Path3DGizmo::set_handle(int p_id, bool p_secondary, Camera3D *p_camera, con
 		return;
 	}
 
-	// Secondary handles: in, out, tilt.
+	// Secondary handles: in, out, tilt, twist.
 	const HandleInfo info = _secondary_handles_info[p_id];
 	switch (info.type) {
 		case HandleType::HANDLE_TYPE_OUT:
@@ -207,6 +211,29 @@ void Path3DGizmo::set_handle(int p_id, bool p_secondary, Camera3D *p_camera, con
 			}
 			break;
 		}
+		case HandleType::HANDLE_TYPE_TWIST: {
+			const int idx = info.point_idx;
+			const Vector3 position = c->get_point_position(idx);
+			const Basis posture = c->get_point_baked_posture(idx);
+			const Vector3 side = posture.get_column(0);
+			const Vector3 up = posture.get_column(1);
+			const Plane twist_plane_global = gt.xform(Plane(up, position));
+
+			Vector3 intersection;
+
+			if (twist_plane_global.intersects_ray(ray_from, ray_dir, &intersection)) {
+				Vector3 direction = gi.xform(intersection) - position;
+				real_t twist_angle = side.signed_angle_to(direction, up);
+
+				if (Node3DEditor::get_singleton()->is_snap_enabled()) {
+					real_t snap_degrees = Node3DEditor::get_singleton()->get_rotate_snap();
+					twist_angle = Math::deg_to_rad(Math::snapped(Math::rad_to_deg(twist_angle), snap_degrees));
+				}
+
+				c->set_point_twist(idx, twist_angle);
+			}
+			break;
+		}
 	}
 }
 
@@ -234,7 +261,7 @@ void Path3DGizmo::commit_handle(int p_id, bool p_secondary, const Variant &p_res
 		return;
 	}
 
-	// Secondary handles: in, out, tilt.
+	// Secondary handles: in, out, tilt, twist.
 	const HandleInfo info = _secondary_handles_info[p_id];
 	const int idx = info.point_idx;
 	switch (info.type) {
@@ -287,6 +314,18 @@ void Path3DGizmo::commit_handle(int p_id, bool p_secondary, const Variant &p_res
 			ur->commit_action();
 			break;
 		}
+		case HandleType::HANDLE_TYPE_TWIST: {
+			if (p_cancel) {
+				c->set_point_twist(idx, p_restore);
+				return;
+			}
+			ur->create_action(TTR("Set Curve Point Twist"));
+			ur->add_do_method(c.ptr(), "set_point_twist", idx, c->get_point_twist(idx));
+			ur->add_undo_method(c.ptr(), "set_point_twist", idx, p_restore);
+
+			ur->commit_action();
+			break;
+		}
 	}
 }
 
@@ -297,6 +336,8 @@ void Path3DGizmo::redraw() {
 	Ref<StandardMaterial3D> path_thin_material = gizmo_plugin->get_material("path_thin_material", this);
 	Ref<StandardMaterial3D> path_tilt_material = gizmo_plugin->get_material("path_tilt_material", this);
 	Ref<StandardMaterial3D> path_tilt_muted_material = gizmo_plugin->get_material("path_tilt_muted_material", this);
+	Ref<StandardMaterial3D> path_twist_material = gizmo_plugin->get_material("path_twist_material", this);
+	Ref<StandardMaterial3D> path_twist_muted_material = gizmo_plugin->get_material("path_twist_muted_material", this);
 	Ref<StandardMaterial3D> handles_material = gizmo_plugin->get_material("handles");
 	Ref<StandardMaterial3D> sec_handles_material = gizmo_plugin->get_material("sec_handles");
 
@@ -320,7 +361,7 @@ void Path3DGizmo::redraw() {
 			Transform3D *w = frames.ptrw();
 
 			for (int i = 0; i < sample_count; i++) {
-				w[i] = c->sample_baked_with_rotation(i * interval, true, true);
+				w[i] = c->sample_baked_with_rotation(i * interval, true, true, true);
 			}
 		}
 
@@ -375,6 +416,7 @@ void Path3DGizmo::redraw() {
 	if (Path3DEditorPlugin::singleton->get_edited_path() == path) {
 		PackedVector3Array handle_lines;
 		PackedVector3Array tilt_handle_lines;
+		PackedVector3Array twist_handle_lines;
 		PackedVector3Array primary_handle_points;
 		PackedVector3Array secondary_handle_points;
 		PackedInt32Array collected_secondary_handle_ids; // Avoid shadowing member on Node3DEditorGizmo.
@@ -428,9 +470,9 @@ void Path3DGizmo::redraw() {
 
 					const Basis posture = c->get_point_baked_posture(idx, true);
 					const Vector3 up = posture.get_column(1);
-					secondary_handle_points.append(pos + up * disk_size);
+					secondary_handle_points.append(pos + up * disk_size_tilt);
 					tilt_handle_lines.append(pos);
-					tilt_handle_lines.append(pos + up * disk_size);
+					tilt_handle_lines.append(pos + up * disk_size_tilt);
 				}
 
 				// Tilt disk.
@@ -446,9 +488,44 @@ void Path3DGizmo::redraw() {
 					for (int i = 0; i <= n; i++) {
 						const float a = Math_TAU * i / n;
 						const Vector3 edge = sin(a) * side + cos(a) * up;
-						disk.append(pos + edge * disk_size);
+						disk.append(pos + edge * disk_size_tilt);
 					}
 					add_vertices(disk, path_tilt_material, Mesh::PRIMITIVE_LINE_STRIP);
+				}
+			}
+
+			// Collect twist-handles.
+			if (Path3DEditorPlugin::singleton->curve_edit_twist->is_pressed()) {
+				// Twist handle.
+				{
+					info.type = HandleType::HANDLE_TYPE_TWIST;
+					const int handle_idx = idx * 3 + 2;
+					collected_secondary_handle_ids.append(handle_idx);
+					_secondary_handles_info.write[handle_idx] = info;
+
+					const Basis posture = c->get_point_baked_posture(idx, false, true);
+					const Vector3 side = posture.get_column(0);
+					secondary_handle_points.append(pos + side * disk_size_twist);
+					twist_handle_lines.append(pos);
+					twist_handle_lines.append(pos + side * disk_size_twist);
+				}
+
+				// Twist disk.
+				{
+					const Basis posture = c->get_point_baked_posture(idx, false);
+					const Vector3 tangent = posture.get_column(2);
+					const Vector3 side = posture.get_column(0);
+
+					PackedVector3Array disk;
+					disk.append(pos);
+
+					const int n = 36;
+					for (int i = 0; i <= n; i++) {
+						const float a = Math_TAU * i / n;
+						const Vector3 edge = sin(a) * tangent + cos(a) * side;
+						disk.append(pos + edge * disk_size_twist);
+					}
+					add_vertices(disk, path_twist_material, Mesh::PRIMITIVE_LINE_STRIP);
 				}
 			}
 		}
@@ -459,6 +536,10 @@ void Path3DGizmo::redraw() {
 
 		if (tilt_handle_lines.size() > 1) {
 			add_lines(tilt_handle_lines, path_tilt_material);
+		}
+
+		if (twist_handle_lines.size() > 1) {
+			add_lines(twist_handle_lines, path_twist_material);
 		}
 
 		if (!Path3DEditorPlugin::singleton->curve_edit->is_pressed() && primary_handle_points.size()) {
@@ -476,9 +557,10 @@ void Path3DGizmo::_update_transform_gizmo() {
 	Node3DEditor::get_singleton()->update_transform_gizmo();
 }
 
-Path3DGizmo::Path3DGizmo(Path3D *p_path, float p_disk_size) {
+Path3DGizmo::Path3DGizmo(Path3D *p_path, float p_disk_size_tilt, float p_disk_size_twist) {
 	path = p_path;
-	disk_size = p_disk_size;
+	disk_size_tilt = p_disk_size_tilt;
+	disk_size_twist = p_disk_size_twist;
 	set_node_3d(p_path);
 	orig_in_length = 0;
 	orig_out_length = 0;
@@ -626,7 +708,8 @@ EditorPlugin::AfterGUIInput Path3DEditorPlugin::forward_3d_gui_input(Camera3D *p
 				real_t dist_to_p = viewport->point_to_screen(gt.xform(c->get_point_position(i))).distance_to(mbpos);
 				real_t dist_to_p_out = viewport->point_to_screen(gt.xform(c->get_point_position(i) + c->get_point_out(i))).distance_to(mbpos);
 				real_t dist_to_p_in = viewport->point_to_screen(gt.xform(c->get_point_position(i) + c->get_point_in(i))).distance_to(mbpos);
-				real_t dist_to_p_up = viewport->point_to_screen(gt.xform(c->get_point_position(i) + c->get_point_baked_posture(i, true).get_column(1) * disk_size)).distance_to(mbpos);
+				real_t dist_to_p_up = viewport->point_to_screen(gt.xform(c->get_point_position(i) + c->get_point_baked_posture(i, true).get_column(1) * disk_size_tilt)).distance_to(mbpos);
+				real_t dist_to_p_side = viewport->point_to_screen(gt.xform(c->get_point_position(i) + c->get_point_baked_posture(i, false, true).get_column(0) * disk_size_twist)).distance_to(mbpos);
 
 				// Find the offset and point index of the place to break up.
 				// Also check for the control points.
@@ -656,6 +739,13 @@ EditorPlugin::AfterGUIInput Path3DEditorPlugin::forward_3d_gui_input(Camera3D *p
 					ur->create_action(TTR("Reset Point Tilt"));
 					ur->add_do_method(c.ptr(), "set_point_tilt", i, 0.0f);
 					ur->add_undo_method(c.ptr(), "set_point_tilt", i, c->get_point_tilt(i));
+					ur->commit_action();
+					return EditorPlugin::AFTER_GUI_INPUT_STOP;
+				} else if (dist_to_p_side < click_dist) {
+					EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
+					ur->create_action(TTR("Reset Point Twist"));
+					ur->add_do_method(c.ptr(), "set_point_twist", i, 0.0f);
+					ur->add_undo_method(c.ptr(), "set_point_twist", i, c->get_point_twist(i));
 					ur->commit_action();
 					return EditorPlugin::AFTER_GUI_INPUT_STOP;
 				}
@@ -710,6 +800,7 @@ void Path3DEditorPlugin::_mode_changed(int p_mode) {
 	curve_create->set_pressed(p_mode == MODE_CREATE);
 	curve_edit_curve->set_pressed(p_mode == MODE_EDIT_CURVE);
 	curve_edit_tilt->set_pressed(p_mode == MODE_EDIT_TILT);
+	curve_edit_twist->set_pressed(p_mode == MODE_EDIT_TWIST);
 	curve_edit->set_pressed(p_mode == MODE_EDIT);
 	curve_del->set_pressed(p_mode == MODE_DELETE);
 
@@ -815,6 +906,7 @@ void Path3DEditorPlugin::_update_theme() {
 	curve_edit->set_icon(EditorNode::get_singleton()->get_editor_theme()->get_icon(SNAME("CurveEdit"), EditorStringName(EditorIcons)));
 	curve_edit_curve->set_icon(EditorNode::get_singleton()->get_editor_theme()->get_icon(SNAME("CurveCurve"), EditorStringName(EditorIcons)));
 	curve_edit_tilt->set_icon(EditorNode::get_singleton()->get_editor_theme()->get_icon(SNAME("CurveTilt"), EditorStringName(EditorIcons)));
+	curve_edit_twist->set_icon(EditorNode::get_singleton()->get_editor_theme()->get_icon(SNAME("CurveTwist"), EditorStringName(EditorIcons)));
 	curve_create->set_icon(EditorNode::get_singleton()->get_editor_theme()->get_icon(SNAME("CurveCreate"), EditorStringName(EditorIcons)));
 	curve_del->set_icon(EditorNode::get_singleton()->get_editor_theme()->get_icon(SNAME("CurveDelete"), EditorStringName(EditorIcons)));
 	curve_close->set_icon(EditorNode::get_singleton()->get_editor_theme()->get_icon(SNAME("CurveClose"), EditorStringName(EditorIcons)));
@@ -827,6 +919,7 @@ void Path3DEditorPlugin::_notification(int p_what) {
 			curve_create->connect(SceneStringName(pressed), callable_mp(this, &Path3DEditorPlugin::_mode_changed).bind(MODE_CREATE));
 			curve_edit_curve->connect(SceneStringName(pressed), callable_mp(this, &Path3DEditorPlugin::_mode_changed).bind(MODE_EDIT_CURVE));
 			curve_edit_tilt->connect(SceneStringName(pressed), callable_mp(this, &Path3DEditorPlugin::_mode_changed).bind(MODE_EDIT_TILT));
+			curve_edit_twist->connect(SceneStringName(pressed), callable_mp(this, &Path3DEditorPlugin::_mode_changed).bind(MODE_EDIT_TWIST));
 			curve_edit->connect(SceneStringName(pressed), callable_mp(this, &Path3DEditorPlugin::_mode_changed).bind(MODE_EDIT));
 			curve_del->connect(SceneStringName(pressed), callable_mp(this, &Path3DEditorPlugin::_mode_changed).bind(MODE_DELETE));
 			curve_close->connect(SceneStringName(pressed), callable_mp(this, &Path3DEditorPlugin::_close_curve));
@@ -859,9 +952,10 @@ Path3DEditorPlugin::Path3DEditorPlugin() {
 	lock_y = false;
 	lock_z = false;
 
-	disk_size = EDITOR_DEF_RST("editors/3d_gizmos/gizmo_settings/path3d_tilt_disk_size", 0.8);
+	disk_size_tilt = EDITOR_DEF_RST("editors/3d_gizmos/gizmo_settings/path3d_tilt_disk_size", 0.8);
+	disk_size_twist = EDITOR_DEF_RST("editors/3d_gizmos/gizmo_settings/path3d_twist_disk_size", 0.8);
 
-	Ref<Path3DGizmoPlugin> gizmo_plugin = memnew(Path3DGizmoPlugin(disk_size));
+	Ref<Path3DGizmoPlugin> gizmo_plugin = memnew(Path3DGizmoPlugin(disk_size_tilt, disk_size_twist));
 	Node3DEditor::get_singleton()->add_gizmo_plugin(gizmo_plugin);
 	path_3d_gizmo_plugin = gizmo_plugin;
 
@@ -889,6 +983,13 @@ Path3DEditorPlugin::Path3DEditorPlugin() {
 	curve_edit_tilt->set_focus_mode(Control::FOCUS_NONE);
 	curve_edit_tilt->set_tooltip_text(TTR("Select Tilt Handles"));
 	topmenu_bar->add_child(curve_edit_tilt);
+
+	curve_edit_twist = memnew(Button);
+	curve_edit_twist->set_theme_type_variation("FlatButton");
+	curve_edit_twist->set_toggle_mode(true);
+	curve_edit_twist->set_focus_mode(Control::FOCUS_NONE);
+	curve_edit_twist->set_tooltip_text(TTR("Select Twist Handles"));
+	topmenu_bar->add_child(curve_edit_twist);
 
 	curve_create = memnew(Button);
 	curve_create->set_theme_type_variation("FlatButton");
@@ -954,7 +1055,7 @@ Ref<EditorNode3DGizmo> Path3DGizmoPlugin::create_gizmo(Node3D *p_spatial) {
 
 	Path3D *path = Object::cast_to<Path3D>(p_spatial);
 	if (path) {
-		ref = Ref<Path3DGizmo>(memnew(Path3DGizmo(path, disk_size)));
+		ref = Ref<Path3DGizmo>(memnew(Path3DGizmo(path, disk_size_tilt, disk_size_twist)));
 	}
 
 	return ref;
@@ -1043,7 +1144,7 @@ Transform3D Path3DGizmoPlugin::get_subgizmo_transform(const EditorNode3DGizmo *p
 	ERR_FAIL_COND_V(curve.is_null(), Transform3D());
 	ERR_FAIL_INDEX_V(p_id, curve->get_point_count(), Transform3D());
 
-	Basis basis = transformation_locked_basis.has(p_id) ? transformation_locked_basis[p_id] : curve->get_point_baked_posture(p_id, true);
+	Basis basis = transformation_locked_basis.has(p_id) ? transformation_locked_basis[p_id] : curve->get_point_baked_posture(p_id, true, true);
 	Vector3 pos = curve->get_point_position(p_id);
 
 	Transform3D t = Transform3D(basis, pos);
@@ -1058,7 +1159,7 @@ void Path3DGizmoPlugin::set_subgizmo_transform(const EditorNode3DGizmo *p_gizmo,
 	ERR_FAIL_INDEX(p_id, curve->get_point_count());
 
 	if (!transformation_locked_basis.has(p_id)) {
-		transformation_locked_basis[p_id] = Basis(curve->get_point_baked_posture(p_id, true));
+		transformation_locked_basis[p_id] = Basis(curve->get_point_baked_posture(p_id, true, true));
 	}
 	curve->set_point_position(p_id, p_transform.origin);
 }
@@ -1094,15 +1195,19 @@ int Path3DGizmoPlugin::get_priority() const {
 	return -1;
 }
 
-Path3DGizmoPlugin::Path3DGizmoPlugin(float p_disk_size) {
+Path3DGizmoPlugin::Path3DGizmoPlugin(float p_disk_size_tilt, float p_disk_size_twist) {
 	Color path_color = SceneTree::get_singleton()->get_debug_paths_color();
 	Color path_tilt_color = EDITOR_DEF_RST("editors/3d_gizmos/gizmo_colors/path_tilt", Color(1.0, 1.0, 0.4, 0.9));
-	disk_size = p_disk_size;
+	Color path_twist_color = EDITOR_DEF_RST("editors/3d_gizmos/gizmo_colors/path_twist", Color(1.0, 0.4, 1.0, 0.9));
+	disk_size_tilt = p_disk_size_tilt;
+	disk_size_twist = p_disk_size_twist;
 
 	create_material("path_material", path_color);
 	create_material("path_thin_material", Color(0.6, 0.6, 0.6));
 	create_material("path_tilt_material", path_tilt_color);
 	create_material("path_tilt_muted_material", path_tilt_color * 0.7);
+	create_material("path_twist_material", path_twist_color);
+	create_material("path_twist_muted_material", path_twist_color * 0.7);
 	create_handle_material("handles", false, EditorNode::get_singleton()->get_editor_theme()->get_icon(SNAME("EditorPathSmoothHandle"), EditorStringName(EditorIcons)));
 	create_handle_material("sec_handles", false, EditorNode::get_singleton()->get_editor_theme()->get_icon(SNAME("EditorCurveHandle"), EditorStringName(EditorIcons)));
 }

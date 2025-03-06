@@ -121,7 +121,7 @@ void Path3D::_update_debug_mesh() {
 	Vector3 *bones_ptr = bones.ptrw();
 
 	for (int i = 0; i < sample_count; i++) {
-		const Transform3D r = curve->sample_baked_with_rotation(i * interval, true, true);
+		const Transform3D r = curve->sample_baked_with_rotation(i * interval, true, true, true);
 
 		const Vector3 p1 = r.origin;
 		const Vector3 side = r.basis.get_column(0);
@@ -254,8 +254,9 @@ void PathFollow3D::_update_transform() {
 		Vector3 pos = c->sample_baked(progress, cubic);
 		t.origin = pos;
 	} else {
-		t = c->sample_baked_with_rotation(progress, cubic, false);
+		t = c->sample_baked_with_rotation(progress, cubic, false, false);
 		Vector3 tangent = -t.basis.get_column(2); // Retain tangent for applying tilt.
+		Vector3 up = t.basis.get_column(1); // Retain up for applying twist.
 		t = PathFollow3D::correct_posture(t, rotation_mode);
 
 		// Switch Z+ and Z- if necessary.
@@ -266,9 +267,13 @@ void PathFollow3D::_update_transform() {
 		// Apply tilt *after* correct_posture().
 		if (tilt_enabled) {
 			const real_t tilt = c->sample_baked_tilt(progress);
+			t.basis.rotate(tangent, tilt);
+		}
 
-			const Basis twist(tangent, tilt);
-			t.basis = twist * t.basis;
+		// Apply twist *after* correct_posture().
+		if (twist_enabled) {
+			const real_t twist = c->sample_baked_twist(progress);
+			t.basis.rotate(up, twist);
 		}
 	}
 
@@ -393,6 +398,9 @@ void PathFollow3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_tilt_enabled", "enabled"), &PathFollow3D::set_tilt_enabled);
 	ClassDB::bind_method(D_METHOD("is_tilt_enabled"), &PathFollow3D::is_tilt_enabled);
 
+	ClassDB::bind_method(D_METHOD("set_twist_enabled", "enabled"), &PathFollow3D::set_twist_enabled);
+	ClassDB::bind_method(D_METHOD("is_twist_enabled"), &PathFollow3D::is_twist_enabled);
+
 	ClassDB::bind_static_method("PathFollow3D", D_METHOD("correct_posture", "transform", "rotation_mode"), &PathFollow3D::correct_posture);
 
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "progress", PROPERTY_HINT_RANGE, "0,10000,0.01,or_less,or_greater,suffix:m"), "set_progress", "get_progress");
@@ -404,6 +412,7 @@ void PathFollow3D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "cubic_interp"), "set_cubic_interpolation", "get_cubic_interpolation");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "loop"), "set_loop", "has_loop");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "tilt_enabled"), "set_tilt_enabled", "is_tilt_enabled");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "twist_enabled"), "set_twist_enabled", "is_twist_enabled");
 
 	BIND_ENUM_CONSTANT(ROTATION_NONE);
 	BIND_ENUM_CONSTANT(ROTATION_Y);
@@ -510,4 +519,13 @@ void PathFollow3D::set_tilt_enabled(bool p_enabled) {
 
 bool PathFollow3D::is_tilt_enabled() const {
 	return tilt_enabled;
+}
+
+void PathFollow3D::set_twist_enabled(bool p_enabled) {
+	twist_enabled = p_enabled;
+	update_transform();
+}
+
+bool PathFollow3D::is_twist_enabled() const {
+	return twist_enabled;
 }

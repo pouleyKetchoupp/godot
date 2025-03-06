@@ -45,6 +45,12 @@
 				Returns the cache of tilts as a [PackedFloat32Array].
 			</description>
 		</method>
+		<method name="get_baked_twists" qualifiers="const">
+			<return type="PackedFloat32Array" />
+			<description>
+				Returns the cache of twists as a [PackedFloat32Array].
+			</description>
+		</method>
 		<method name="get_baked_up_vectors" qualifiers="const">
 			<return type="PackedVector3Array" />
 			<description>
@@ -96,6 +102,13 @@
 				Returns the tilt angle in radians for the point [param idx]. If the index is out of bounds, the function sends an error to the console, and returns [code]0[/code].
 			</description>
 		</method>
+		<method name="get_point_twist" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="idx" type="int" />
+			<description>
+				Returns the twist angle in radians for the point [param idx]. If the index is out of bounds, the function sends an error to the console, and returns [code]0[/code].
+			</description>
+		</method>
 		<method name="remove_point">
 			<return type="void" />
 			<param index="0" name="idx" type="int" />
@@ -126,7 +139,8 @@
 			<param index="0" name="offset" type="float" />
 			<param index="1" name="apply_tilt" type="bool" default="false" />
 			<description>
-				Returns an up vector within the curve at position [param offset], where [param offset] is measured as a distance in 3D units along the curve. To do that, it finds the two cached up vectors where the [param offset] lies between, then interpolates the values. If [param apply_tilt] is [code]true[/code], an interpolated tilt is applied to the interpolated up vector.
+				Returns an up vector within the curve at position [param offset], where [param offset] is measured as a distance in 3D units along the curve. To do that, it finds the two cached up vectors where the [param offset] lies between, then interpolates the values.
+				If [param apply_tilt] is [code]true[/code], an interpolated tilt is applied to the interpolated up vector.
 				If the curve has no up vectors, the function sends an error to the console, and returns [code](0, 1, 0)[/code].
 			</description>
 		</method>
@@ -135,6 +149,7 @@
 			<param index="0" name="offset" type="float" default="0.0" />
 			<param index="1" name="cubic" type="bool" default="false" />
 			<param index="2" name="apply_tilt" type="bool" default="false" />
+			<param index="2" name="apply_twist" type="bool" default="false" />
 			<description>
 				Returns a [Transform3D] with [code]origin[/code] as point position, [code]basis.x[/code] as sideway vector, [code]basis.y[/code] as up vector, [code]basis.z[/code] as forward vector. When the curve length is 0, there is no reasonable way to calculate the rotation, all vectors aligned with global space axes. See also [method sample_baked].
 			</description>
@@ -177,6 +192,15 @@
 			<description>
 				Sets the tilt angle in radians for the point [param idx]. If the index is out of bounds, the function sends an error to the console.
 				The tilt controls the rotation along the look-at axis an object traveling the path would have. In the case of a curve controlling a [PathFollow3D], this tilt is an offset over the natural tilt the [PathFollow3D] calculates.
+			</description>
+		</method>
+		<method name="set_point_twist">
+			<return type="void" />
+			<param index="0" name="idx" type="int" />
+			<param index="1" name="twist" type="float" />
+			<description>
+				Sets the twist angle in radians for the point [param idx]. If the index is out of bounds, the function sends an error to the console.
+				The twist controls the rotation along the look-at axis an object traveling the path would have. In the case of a curve controlling a [PathFollow3D], this twist is an offset over the natural twist the [PathFollow3D] calculates.
 			</description>
 		</method>
 		<method name="tessellate" qualifiers="const">
