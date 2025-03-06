@@ -121,6 +121,17 @@ void Path3DGizmo::set_handle(int p_id, bool p_secondary, Camera3D *p_camera, con
 			}
 
 			Vector3 local = gi.xform(inters);
+
+			if (Path3DEditorPlugin::singleton->lock_x_enabled()) {
+				local.x = 0.f;
+			}
+			if (Path3DEditorPlugin::singleton->lock_y_enabled()) {
+				local.y = 0.f;
+			}
+			if (Path3DEditorPlugin::singleton->lock_z_enabled()) {
+				local.z = 0.f;
+			}
+
 			c->set_point_position(idx, local);
 		}
 
@@ -147,6 +158,16 @@ void Path3DGizmo::set_handle(int p_id, bool p_secondary, Camera3D *p_camera, con
 				if (Node3DEditor::get_singleton()->is_snap_enabled()) {
 					float snap = Node3DEditor::get_singleton()->get_translate_snap();
 					local.snapf(snap);
+				}
+
+				if (Path3DEditorPlugin::singleton->lock_x_enabled()) {
+					local.x = 0.f;
+				}
+				if (Path3DEditorPlugin::singleton->lock_y_enabled()) {
+					local.y = 0.f;
+				}
+				if (Path3DEditorPlugin::singleton->lock_z_enabled()) {
+					local.z = 0.f;
 				}
 
 				if (info.type == HandleType::HANDLE_TYPE_IN) {
@@ -729,6 +750,21 @@ void Path3DEditorPlugin::_handle_option_pressed(int p_option) {
 			mirror_handle_length = !is_checked;
 			pm->set_item_checked(HANDLE_OPTION_LENGTH, mirror_handle_length);
 		} break;
+		case HANDLE_OPTION_LOCK_X: {
+			bool is_checked = pm->is_item_checked(HANDLE_OPTION_LOCK_X);
+			lock_x = !is_checked;
+			pm->set_item_checked(HANDLE_OPTION_LOCK_X, lock_x);
+		} break;
+		case HANDLE_OPTION_LOCK_Y: {
+			bool is_checked = pm->is_item_checked(HANDLE_OPTION_LOCK_Y);
+			lock_y = !is_checked;
+			pm->set_item_checked(HANDLE_OPTION_LOCK_Y, lock_y);
+		} break;
+		case HANDLE_OPTION_LOCK_Z: {
+			bool is_checked = pm->is_item_checked(HANDLE_OPTION_LOCK_Z);
+			lock_z = !is_checked;
+			pm->set_item_checked(HANDLE_OPTION_LOCK_Z, lock_z);
+		} break;
 	}
 }
 
@@ -819,6 +855,9 @@ Path3DEditorPlugin::Path3DEditorPlugin() {
 	singleton = this;
 	mirror_handle_angle = true;
 	mirror_handle_length = true;
+	lock_x = false;
+	lock_y = false;
+	lock_z = false;
 
 	disk_size = EDITOR_DEF_RST("editors/3d_gizmos/gizmo_settings/path3d_tilt_disk_size", 0.8);
 
@@ -896,6 +935,12 @@ Path3DEditorPlugin::Path3DEditorPlugin() {
 	menu->set_item_checked(HANDLE_OPTION_ANGLE, mirror_handle_angle);
 	menu->add_check_item(TTR("Mirror Handle Lengths"));
 	menu->set_item_checked(HANDLE_OPTION_LENGTH, mirror_handle_length);
+	menu->add_check_item(TTR("Lock X"));
+	menu->set_item_checked(HANDLE_OPTION_LOCK_X, lock_x);
+	menu->add_check_item(TTR("Lock Y"));
+	menu->set_item_checked(HANDLE_OPTION_LOCK_Y, lock_y);
+	menu->add_check_item(TTR("Lock Z"));
+	menu->set_item_checked(HANDLE_OPTION_LOCK_Z, lock_z);
 	menu->connect(SceneStringName(id_pressed), callable_mp(this, &Path3DEditorPlugin::_handle_option_pressed));
 
 	curve_edit->set_pressed(true);

@@ -145,6 +145,9 @@ class Path3DEditorPlugin : public EditorPlugin {
 	bool handle_clicked = false;
 	bool mirror_handle_angle;
 	bool mirror_handle_length;
+	bool lock_x;
+	bool lock_y;
+	bool lock_z;
 
 	void _confirm_clear_points();
 	void _clear_points();
@@ -153,7 +156,10 @@ class Path3DEditorPlugin : public EditorPlugin {
 
 	enum HandleOption {
 		HANDLE_OPTION_ANGLE,
-		HANDLE_OPTION_LENGTH
+		HANDLE_OPTION_LENGTH,
+		HANDLE_OPTION_LOCK_X,
+		HANDLE_OPTION_LOCK_Y,
+		HANDLE_OPTION_LOCK_Z,
 	};
 
 protected:
@@ -172,9 +178,12 @@ public:
 	virtual bool handles(Object *p_object) const override;
 	virtual void make_visible(bool p_visible) override;
 
-	bool mirror_angle_enabled() { return mirror_handle_angle; }
-	bool mirror_length_enabled() { return mirror_handle_length; }
-	bool is_handle_clicked() { return handle_clicked; }
+	bool mirror_angle_enabled() const { return mirror_handle_angle; }
+	bool mirror_length_enabled() const { return mirror_handle_length; }
+	bool lock_x_enabled() const { return lock_x; }
+	bool lock_y_enabled() const { return lock_y; }
+	bool lock_z_enabled() const { return lock_z; }
+	bool is_handle_clicked() const { return handle_clicked; }
 	void set_handle_clicked(bool clicked) { handle_clicked = clicked; }
 
 	Path3DEditorPlugin();
