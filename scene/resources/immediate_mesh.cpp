@@ -98,6 +98,54 @@ void ImmediateMesh::surface_set_uv2(const Vector2 &p_uv2) {
 
 	current_uv2 = p_uv2;
 }
+void ImmediateMesh::surface_set_custom0(const Vector4 &p_value) {
+	ERR_FAIL_COND_MSG(!surface_active, "Not creating any surface. Use surface_begin() to do it.");
+	if (!uses_custom0) {
+		custom0s.resize(vertices.size());
+		for (Vector4 &value : custom0s) {
+			value = p_value;
+		}
+		uses_custom0 = true;
+	}
+
+	current_custom0 = p_value;
+}
+void ImmediateMesh::surface_set_custom1(const Vector4 &p_value) {
+	ERR_FAIL_COND_MSG(!surface_active, "Not creating any surface. Use surface_begin() to do it.");
+	if (!uses_custom1) {
+		custom1s.resize(vertices.size());
+		for (Vector4 &value : custom1s) {
+			value = p_value;
+		}
+		uses_custom1 = true;
+	}
+
+	current_custom1 = p_value;
+}
+void ImmediateMesh::surface_set_custom2(const Vector4 &p_value) {
+	ERR_FAIL_COND_MSG(!surface_active, "Not creating any surface. Use surface_begin() to do it.");
+	if (!uses_custom2) {
+		custom2s.resize(vertices.size());
+		for (Vector4 &value : custom2s) {
+			value = p_value;
+		}
+		uses_custom2 = true;
+	}
+
+	current_custom2 = p_value;
+}
+void ImmediateMesh::surface_set_custom3(const Vector4 &p_value) {
+	ERR_FAIL_COND_MSG(!surface_active, "Not creating any surface. Use surface_begin() to do it.");
+	if (!uses_custom3) {
+		custom3s.resize(vertices.size());
+		for (Vector4 &value : custom3s) {
+			value = p_value;
+		}
+		uses_custom3 = true;
+	}
+
+	current_custom3 = p_value;
+}
 void ImmediateMesh::surface_add_vertex(const Vector3 &p_vertex) {
 	ERR_FAIL_COND_MSG(!surface_active, "Not creating any surface. Use surface_begin() to do it.");
 	ERR_FAIL_COND_MSG(vertices.size() && active_surface_data.vertex_2d, "Can't mix 2D and 3D vertices in a surface.");
@@ -116,6 +164,18 @@ void ImmediateMesh::surface_add_vertex(const Vector3 &p_vertex) {
 	}
 	if (uses_uv2s) {
 		uv2s.push_back(current_uv2);
+	}
+	if (uses_custom0) {
+		custom0s.push_back(current_custom0);
+	}
+	if (uses_custom1) {
+		custom1s.push_back(current_custom1);
+	}
+	if (uses_custom2) {
+		custom2s.push_back(current_custom2);
+	}
+	if (uses_custom3) {
+		custom3s.push_back(current_custom3);
 	}
 	vertices.push_back(p_vertex);
 }
@@ -138,6 +198,18 @@ void ImmediateMesh::surface_add_vertex_2d(const Vector2 &p_vertex) {
 	}
 	if (uses_uv2s) {
 		uv2s.push_back(current_uv2);
+	}
+	if (uses_custom0) {
+		custom0s.push_back(current_custom0);
+	}
+	if (uses_custom1) {
+		custom1s.push_back(current_custom1);
+	}
+	if (uses_custom2) {
+		custom2s.push_back(current_custom2);
+	}
+	if (uses_custom3) {
+		custom3s.push_back(current_custom3);
 	}
 	Vector3 v(p_vertex.x, p_vertex.y, 0);
 	vertices.push_back(v);
@@ -226,7 +298,7 @@ void ImmediateMesh::surface_end() {
 		}
 	}
 
-	if (uses_colors || uses_uvs || uses_uv2s) {
+	if (uses_colors || uses_uvs || uses_uv2s || uses_custom0 || uses_custom1 || uses_custom2 || uses_custom3) {
 		uint32_t attribute_stride = 0;
 
 		if (uses_colors) {
@@ -244,6 +316,34 @@ void ImmediateMesh::surface_end() {
 			format |= ARRAY_FORMAT_TEX_UV2;
 			uv2_offset = attribute_stride;
 			attribute_stride += sizeof(float) * 2;
+		}
+		uint32_t custom0_offset = 0;
+		if (uses_custom0) {
+			format |= ARRAY_FORMAT_CUSTOM0;
+			format |= (ARRAY_CUSTOM_MAX - 1) << ARRAY_FORMAT_CUSTOM0_SHIFT;
+			custom0_offset = attribute_stride;
+			attribute_stride += sizeof(float) * 4;
+		}
+		uint32_t custom1_offset = 0;
+		if (uses_custom1) {
+			format |= ARRAY_FORMAT_CUSTOM1;
+			format |= (ARRAY_CUSTOM_MAX - 1) << ARRAY_FORMAT_CUSTOM1_SHIFT;
+			custom1_offset = attribute_stride;
+			attribute_stride += sizeof(float) * 4;
+		}
+		uint32_t custom2_offset = 0;
+		if (uses_custom2) {
+			format |= ARRAY_FORMAT_CUSTOM2;
+			format |= (ARRAY_CUSTOM_MAX - 1) << ARRAY_FORMAT_CUSTOM2_SHIFT;
+			custom2_offset = attribute_stride;
+			attribute_stride += sizeof(float) * 4;
+		}
+		uint32_t custom3_offset = 0;
+		if (uses_custom3) {
+			format |= ARRAY_FORMAT_CUSTOM3;
+			format |= (ARRAY_CUSTOM_MAX - 1) << ARRAY_FORMAT_CUSTOM3_SHIFT;
+			custom3_offset = attribute_stride;
+			attribute_stride += sizeof(float) * 4;
 		}
 
 		surface_attribute_create_cache.resize(vertices.size() * attribute_stride);
@@ -265,12 +365,43 @@ void ImmediateMesh::surface_end() {
 				uv[0] = uvs[i].x;
 				uv[1] = uvs[i].y;
 			}
-
 			if (uses_uv2s) {
 				float *uv2 = (float *)&surface_attribute_ptr[i * attribute_stride + uv2_offset];
 
 				uv2[0] = uv2s[i].x;
 				uv2[1] = uv2s[i].y;
+			}
+			if (uses_custom0) {
+				float *custom0 = (float *)&surface_attribute_ptr[i * attribute_stride + custom0_offset];
+
+				custom0[0] = custom0s[i].x;
+				custom0[1] = custom0s[i].y;
+				custom0[2] = custom0s[i].z;
+				custom0[3] = custom0s[i].w;
+			}
+			if (uses_custom1) {
+				float *custom1 = (float *)&surface_attribute_ptr[i * attribute_stride + custom1_offset];
+
+				custom1[0] = custom1s[i].x;
+				custom1[1] = custom1s[i].y;
+				custom1[2] = custom1s[i].z;
+				custom1[3] = custom1s[i].w;
+			}
+			if (uses_custom2) {
+				float *custom2 = (float *)&surface_attribute_ptr[i * attribute_stride + custom2_offset];
+
+				custom2[0] = custom2s[i].x;
+				custom2[1] = custom2s[i].y;
+				custom2[2] = custom2s[i].z;
+				custom2[3] = custom2s[i].w;
+			}
+			if (uses_custom3) {
+				float *custom3 = (float *)&surface_attribute_ptr[i * attribute_stride + custom3_offset];
+
+				custom3[0] = custom3s[i].x;
+				custom3[1] = custom3s[i].y;
+				custom3[2] = custom3s[i].z;
+				custom3[3] = custom3s[i].w;
 			}
 		}
 	}
@@ -280,7 +411,7 @@ void ImmediateMesh::surface_end() {
 	sd.primitive = RS::PrimitiveType(active_surface_data.primitive);
 	sd.format = format;
 	sd.vertex_data = surface_vertex_create_cache;
-	if (uses_colors || uses_uvs || uses_uv2s) {
+	if (uses_colors || uses_uvs || uses_uv2s || uses_custom0 || uses_custom1 || uses_custom2 || uses_custom3) {
 		sd.attribute_data = surface_attribute_create_cache;
 	}
 	sd.vertex_count = vertices.size();
@@ -303,6 +434,10 @@ void ImmediateMesh::surface_end() {
 	tangents.clear();
 	uvs.clear();
 	uv2s.clear();
+	custom0s.clear();
+	custom1s.clear();
+	custom2s.clear();
+	custom3s.clear();
 	vertices.clear();
 
 	uses_colors = false;
@@ -310,6 +445,10 @@ void ImmediateMesh::surface_end() {
 	uses_tangents = false;
 	uses_uvs = false;
 	uses_uv2s = false;
+	uses_custom0 = false;
+	uses_custom1 = false;
+	uses_custom2 = false;
+	uses_custom3 = false;
 
 	surface_active = false;
 }
@@ -324,6 +463,10 @@ void ImmediateMesh::clear_surfaces() {
 	tangents.clear();
 	uvs.clear();
 	uv2s.clear();
+	custom0s.clear();
+	custom1s.clear();
+	custom2s.clear();
+	custom3s.clear();
 	vertices.clear();
 
 	uses_colors = false;
@@ -331,6 +474,10 @@ void ImmediateMesh::clear_surfaces() {
 	uses_tangents = false;
 	uses_uvs = false;
 	uses_uv2s = false;
+	uses_custom0 = false;
+	uses_custom1 = false;
+	uses_custom2 = false;
+	uses_custom3 = false;
 }
 
 int ImmediateMesh::get_surface_count() const {
@@ -402,6 +549,10 @@ void ImmediateMesh::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("surface_set_tangent", "tangent"), &ImmediateMesh::surface_set_tangent);
 	ClassDB::bind_method(D_METHOD("surface_set_uv", "uv"), &ImmediateMesh::surface_set_uv);
 	ClassDB::bind_method(D_METHOD("surface_set_uv2", "uv2"), &ImmediateMesh::surface_set_uv2);
+	ClassDB::bind_method(D_METHOD("surface_set_custom0", "value"), &ImmediateMesh::surface_set_custom0);
+	ClassDB::bind_method(D_METHOD("surface_set_custom1", "value"), &ImmediateMesh::surface_set_custom1);
+	ClassDB::bind_method(D_METHOD("surface_set_custom2", "value"), &ImmediateMesh::surface_set_custom2);
+	ClassDB::bind_method(D_METHOD("surface_set_custom3", "value"), &ImmediateMesh::surface_set_custom3);
 	ClassDB::bind_method(D_METHOD("surface_add_vertex", "vertex"), &ImmediateMesh::surface_add_vertex);
 	ClassDB::bind_method(D_METHOD("surface_add_vertex_2d", "vertex"), &ImmediateMesh::surface_add_vertex_2d);
 	ClassDB::bind_method(D_METHOD("surface_end"), &ImmediateMesh::surface_end);
