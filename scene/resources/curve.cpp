@@ -29,6 +29,7 @@
 /**************************************************************************/
 
 #include "curve.h"
+#include "curve.compat.inc"
 
 #include "core/math/math_funcs.h"
 

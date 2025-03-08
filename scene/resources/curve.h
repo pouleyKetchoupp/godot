@@ -310,6 +310,11 @@ class Curve3D : public Resource {
 protected:
 	static void _bind_methods();
 
+#ifndef DISABLE_DEPRECATED
+	Transform3D sample_baked_with_rotation_compat_custom(real_t p_offset, bool p_cubic = false, bool p_apply_tilt = false) const;
+	static void _bind_compatibility_methods();
+#endif
+
 public:
 #ifdef TOOLS_ENABLED
 	// For Path3DGizmo.

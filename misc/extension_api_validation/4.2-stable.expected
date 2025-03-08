@@ -6,6 +6,12 @@ should instead be used to justify these changes and describe how users should wo
 
 Add new entries at the end of the file.
 
+### Changes for custom 4.3-stable
+
+Validate extension JSON: Error: Field 'classes/Curve3D/methods/sample_baked_with_rotation/arguments': size changed value in new API, from 3 to 4.
+
+Optional arguments added. Compatibility methods registered.
+
 ## Changes between 4.2-stable and 4.3-stable
 
 GH-84660
