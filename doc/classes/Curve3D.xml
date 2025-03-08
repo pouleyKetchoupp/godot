@@ -149,7 +149,7 @@
 			<param index="0" name="offset" type="float" default="0.0" />
 			<param index="1" name="cubic" type="bool" default="false" />
 			<param index="2" name="apply_tilt" type="bool" default="false" />
-			<param index="2" name="apply_twist" type="bool" default="false" />
+			<param index="3" name="apply_twist" type="bool" default="false" />
 			<description>
 				Returns a [Transform3D] with [code]origin[/code] as point position, [code]basis.x[/code] as sideway vector, [code]basis.y[/code] as up vector, [code]basis.z[/code] as forward vector. When the curve length is 0, there is no reasonable way to calculate the rotation, all vectors aligned with global space axes. See also [method sample_baked].
 			</description>

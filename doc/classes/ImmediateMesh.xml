@@ -71,34 +71,6 @@
 				Set the color attribute that will be pushed with the next vertex.
 			</description>
 		</method>
-		<method name="surface_set_normal">
-			<return type="void" />
-			<param index="0" name="normal" type="Vector3" />
-			<description>
-				Set the normal attribute that will be pushed with the next vertex.
-			</description>
-		</method>
-		<method name="surface_set_tangent">
-			<return type="void" />
-			<param index="0" name="tangent" type="Plane" />
-			<description>
-				Set the tangent attribute that will be pushed with the next vertex.
-			</description>
-		</method>
-		<method name="surface_set_uv">
-			<return type="void" />
-			<param index="0" name="uv" type="Vector2" />
-			<description>
-				Set the UV attribute that will be pushed with the next vertex.
-			</description>
-		</method>
-		<method name="surface_set_uv2">
-			<return type="void" />
-			<param index="0" name="uv2" type="Vector2" />
-			<description>
-				Set the UV2 attribute that will be pushed with the next vertex.
-			</description>
-		</method>
 		<method name="surface_set_custom0">
 			<return type="void" />
 			<param index="0" name="value" type="Vector4" />
@@ -125,6 +97,34 @@
 			<param index="0" name="value" type="Vector4" />
 			<description>
 				Set the CUSTOM3 attribute that will be pushed with the next vertex.
+			</description>
+		</method>
+		<method name="surface_set_normal">
+			<return type="void" />
+			<param index="0" name="normal" type="Vector3" />
+			<description>
+				Set the normal attribute that will be pushed with the next vertex.
+			</description>
+		</method>
+		<method name="surface_set_tangent">
+			<return type="void" />
+			<param index="0" name="tangent" type="Plane" />
+			<description>
+				Set the tangent attribute that will be pushed with the next vertex.
+			</description>
+		</method>
+		<method name="surface_set_uv">
+			<return type="void" />
+			<param index="0" name="uv" type="Vector2" />
+			<description>
+				Set the UV attribute that will be pushed with the next vertex.
+			</description>
+		</method>
+		<method name="surface_set_uv2">
+			<return type="void" />
+			<param index="0" name="uv2" type="Vector2" />
+			<description>
+				Set the UV2 attribute that will be pushed with the next vertex.
 			</description>
 		</method>
 	</methods>
