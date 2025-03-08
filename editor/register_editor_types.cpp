@@ -280,6 +280,8 @@ void register_editor_types() {
 
 	GLOBAL_DEF("editor/export/convert_text_resources_to_binary", true);
 
+	GLOBAL_DEF(PropertyInfo(Variant::INT, "editor/rendering/cull_mask_3d", PROPERTY_HINT_LAYERS_3D_RENDER), 0xfffff);
+
 	GLOBAL_DEF("editor/version_control/plugin_name", "");
 	GLOBAL_DEF("editor/version_control/autoload_on_startup", false);
 

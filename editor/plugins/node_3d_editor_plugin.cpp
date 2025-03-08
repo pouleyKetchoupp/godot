@@ -2725,6 +2725,13 @@ void Node3DEditorPlugin::edited_scene_changed() {
 }
 
 void Node3DEditorViewport::_project_settings_changed() {
+	// Update camera settings if changed.
+	const uint32_t default_cull_mask = GLOBAL_DEF(PropertyInfo(Variant::INT, "editor/rendering/cull_mask_3d", PROPERTY_HINT_LAYERS_3D_RENDER), 0xfffff);
+	uint32_t camera_layers = camera->get_cull_mask();
+	camera_layers &= ~((1 << 20) - 1); // remove previous user layers
+	camera_layers |= default_cull_mask; // apply new user layers
+	camera->set_cull_mask(camera_layers);
+
 	// Update shadow atlas if changed.
 	int shadowmap_size = GLOBAL_GET("rendering/lights_and_shadows/positional_shadow/atlas_size");
 	bool shadowmap_16_bits = GLOBAL_GET("rendering/lights_and_shadows/positional_shadow/atlas_16_bits");
@@ -5220,7 +5227,8 @@ Node3DEditorViewport::Node3DEditorViewport(Node3DEditor *p_spatial_editor, int p
 	surface->set_clip_contents(true);
 	camera = memnew(Camera3D);
 	camera->set_disable_gizmos(true);
-	camera->set_cull_mask(((1 << 20) - 1) | (1 << (GIZMO_BASE_LAYER + p_index)) | (1 << GIZMO_EDIT_LAYER) | (1 << GIZMO_GRID_LAYER) | (1 << MISC_TOOL_LAYER));
+	const uint32_t default_cull_mask = GLOBAL_DEF(PropertyInfo(Variant::INT, "editor/rendering/cull_mask_3d", PROPERTY_HINT_LAYERS_3D_RENDER), 0xfffff);
+	camera->set_cull_mask((((1 << 20) - 1) & default_cull_mask) | (1 << (GIZMO_BASE_LAYER + p_index)) | (1 << GIZMO_EDIT_LAYER) | (1 << GIZMO_GRID_LAYER) | (1 << MISC_TOOL_LAYER));
 	viewport->add_child(camera);
 	camera->make_current();
 	surface->set_focus_mode(FOCUS_ALL);
