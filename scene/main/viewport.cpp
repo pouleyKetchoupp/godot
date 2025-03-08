@@ -4873,6 +4873,8 @@ void Viewport::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM2D, "global_canvas_transform", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NONE), "set_global_canvas_transform", "get_global_canvas_transform");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "canvas_cull_mask", PROPERTY_HINT_LAYERS_2D_RENDER), "set_canvas_cull_mask", "get_canvas_cull_mask");
 
+	ADD_SIGNAL(MethodInfo("pre_draw"));
+	ADD_SIGNAL(MethodInfo("post_draw"));
 	ADD_SIGNAL(MethodInfo("size_changed"));
 	ADD_SIGNAL(MethodInfo("gui_focus_changed", PropertyInfo(Variant::OBJECT, "node", PROPERTY_HINT_RESOURCE_TYPE, "Control")));
 
@@ -4981,12 +4983,27 @@ void Viewport::_validate_property(PropertyInfo &p_property) const {
 	}
 }
 
+void Viewport::on_viewport_pre_draw(RID p_viewport) {
+	if (viewport == p_viewport) {
+		emit_signal("pre_draw");
+	}
+}
+
+void Viewport::on_viewport_post_draw(RID p_viewport) {
+	if (viewport == p_viewport) {
+		emit_signal("post_draw");
+	}
+}
+
 Viewport::Viewport() {
 	world_2d = Ref<World2D>(memnew(World2D));
 	world_2d->register_viewport(this);
 
 	viewport = RenderingServer::get_singleton()->viewport_create();
 	texture_rid = RenderingServer::get_singleton()->viewport_get_texture(viewport);
+
+	RenderingServer::get_singleton()->connect("viewport_pre_draw", callable_mp(this, &Viewport::on_viewport_pre_draw));		
+	RenderingServer::get_singleton()->connect("viewport_post_draw", callable_mp(this, &Viewport::on_viewport_post_draw));		
 
 	default_texture.instantiate();
 	default_texture->vp = const_cast<Viewport *>(this);
@@ -5032,6 +5049,10 @@ Viewport::~Viewport() {
 		E->vp = nullptr;
 	}
 	ERR_FAIL_NULL(RenderingServer::get_singleton());
+
+	RenderingServer::get_singleton()->disconnect("viewport_pre_draw", callable_mp(this, &Viewport::on_viewport_pre_draw));
+	RenderingServer::get_singleton()->disconnect("viewport_post_draw", callable_mp(this, &Viewport::on_viewport_post_draw));		
+
 	RenderingServer::get_singleton()->free(viewport);
 }
 

@@ -425,6 +425,16 @@
 				[b]Note:[/b] A Control node losing focus doesn't cause this signal to be emitted.
 			</description>
 		</signal>
+		<signal name="post_draw">
+			<description>
+				Emitted after the RenderingServer has finished updating the Viewport.
+			</description>
+		</signal>
+		<signal name="pre_draw">
+			<description>
+				Emitted before the RenderingServer updates the Viewport.
+			</description>
+		</signal>
 		<signal name="size_changed">
 			<description>
 				Emitted when the size of the viewport is changed, whether by resizing of window, or some other means.

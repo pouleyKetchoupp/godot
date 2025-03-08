@@ -759,6 +759,8 @@ void RendererViewport::draw_viewports(bool p_swap_buffers) {
 			continue; //should not draw
 		}
 
+		RS::get_singleton()->emit_signal(SNAME("viewport_pre_draw"), vp->self);
+
 		RENDER_TIMESTAMP("> Render Viewport " + itos(i));
 
 		RSG::texture_storage->render_target_set_as_unused(vp->render_target);
@@ -847,6 +849,8 @@ void RendererViewport::draw_viewports(bool p_swap_buffers) {
 		objects_drawn += vp->render_info.info[RS::VIEWPORT_RENDER_INFO_TYPE_CANVAS][RS::VIEWPORT_RENDER_INFO_OBJECTS_IN_FRAME];
 		vertices_drawn += vp->render_info.info[RS::VIEWPORT_RENDER_INFO_TYPE_CANVAS][RS::VIEWPORT_RENDER_INFO_PRIMITIVES_IN_FRAME];
 		draw_calls_used += vp->render_info.info[RS::VIEWPORT_RENDER_INFO_TYPE_CANVAS][RS::VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME];
+
+		RS::get_singleton()->emit_signal(SNAME("viewport_post_draw"), vp->self);
 	}
 	RSG::scene->set_debug_draw_mode(RS::VIEWPORT_DEBUG_DRAW_DISABLED);
 

@@ -4217,6 +4217,18 @@
 				Emitted at the beginning of the frame, before the RenderingServer updates all the Viewports.
 			</description>
 		</signal>
+		<signal name="viewport_post_draw">
+			<param index="0" name="viewport" type="RID" />
+			<description>
+				Emitted after the RenderingServer has finished updating the given Viewport.
+			</description>
+		</signal>
+		<signal name="viewport_pre_draw">
+			<param index="0" name="viewport" type="RID" />
+			<description>
+				Emitted before the RenderingServer updates the given Viewport.
+			</description>
+		</signal>
 	</signals>
 	<constants>
 		<constant name="NO_INDEX_ARRAY" value="-1">

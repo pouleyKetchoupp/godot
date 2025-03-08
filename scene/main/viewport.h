@@ -786,6 +786,9 @@ public:
 	bool is_using_xr();
 #endif // _3D_DISABLED
 
+	void on_viewport_pre_draw(RID p_viewport);
+	void on_viewport_post_draw(RID p_viewport);
+
 	Viewport();
 	~Viewport();
 };
