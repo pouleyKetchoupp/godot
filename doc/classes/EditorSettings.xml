@@ -442,6 +442,9 @@
 		<member name="editors/polygon_editor/show_previous_outline" type="bool" setter="" getter="">
 			If [code]true[/code], displays the polygon's previous shape in the 2D polygon editors with an opaque gray outline. This outline is displayed while dragging a point until the left mouse button is released.
 		</member>
+		<member name="editors/shader_editor/behavior/code/apply_shaders_while_typing" type="bool" setter="" getter="">
+			If [code]true[/code], automatically apply shader updates while typing code in the shader editor, otherwise only apply updates on save.
+		</member>
 		<member name="editors/shader_editor/behavior/files/restore_shaders_on_load" type="bool" setter="" getter="">
 			If [code]true[/code], reopens shader files that were open in the shader editor when the project was last closed.
 		</member>

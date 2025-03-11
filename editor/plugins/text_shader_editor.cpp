@@ -981,6 +981,12 @@ void TextShaderEditor::tag_saved_version() {
 	code_editor->get_text_editor()->tag_saved_version();
 }
 
+void TextShaderEditor::on_code_changed() {
+	if (bool(EDITOR_GET("editors/shader_editor/behavior/code/apply_shaders_while_typing"))) {
+		apply_shaders();
+	}
+}
+
 void TextShaderEditor::apply_shaders() {
 	String editor_code = code_editor->get_text_editor()->get_text();
 	if (shader.is_valid()) {
@@ -1124,7 +1130,7 @@ TextShaderEditor::TextShaderEditor() {
 	code_editor->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
 
 	code_editor->connect("show_warnings_panel", callable_mp(this, &TextShaderEditor::_show_warnings_panel));
-	code_editor->connect(CoreStringName(script_changed), callable_mp(this, &TextShaderEditor::apply_shaders));
+	code_editor->connect(CoreStringName(script_changed), callable_mp(this, &TextShaderEditor::on_code_changed));
 	EditorSettings::get_singleton()->connect("settings_changed", callable_mp(this, &TextShaderEditor::_editor_settings_changed));
 	ProjectSettings::get_singleton()->connect("settings_changed", callable_mp(this, &TextShaderEditor::_project_settings_changed));
 

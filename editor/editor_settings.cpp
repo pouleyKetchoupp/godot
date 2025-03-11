@@ -790,6 +790,7 @@ void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
 	_initial_set("editors/animation/onion_layers_future_color", Color(0, 1, 0));
 
 	// Shader editor
+	_initial_set("editors/shader_editor/behavior/code/apply_shaders_while_typing", true);
 	_initial_set("editors/shader_editor/behavior/files/restore_shaders_on_load", true);
 
 	// Visual editors

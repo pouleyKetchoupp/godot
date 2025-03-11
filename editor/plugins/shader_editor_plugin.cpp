@@ -353,6 +353,8 @@ void ShaderEditorPlugin::apply_changes() {
 	for (EditedShader &edited_shader : edited_shaders) {
 		if (edited_shader.shader_editor) {
 			edited_shader.shader_editor->apply_shaders();
+			// Make sure to check for compilation errors on save
+			edited_shader.shader_editor->get_code_editor()->validate_script();
 		}
 	}
 }

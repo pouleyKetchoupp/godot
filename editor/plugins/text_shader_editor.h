@@ -191,6 +191,7 @@ public:
 	bool was_compilation_successful() const { return compilation_success; }
 	bool get_trim_trailing_whitespace_on_save() const { return trim_trailing_whitespace_on_save; }
 	bool get_trim_final_newlines_on_save() const { return trim_final_newlines_on_save; }
+	void on_code_changed();
 	void apply_shaders();
 	void ensure_select_current();
 	void edit(const Ref<Shader> &p_shader);
