@@ -282,7 +282,9 @@ void PathFollow3D::_update_transform() {
 	t.translate_local(Vector3(h_offset, v_offset, 0));
 	t.basis.scale_local(scale);
 
-	set_transform(t);
+	if (!get_transform().is_equal_approx(t)) {
+		set_transform(t);
+	}
 }
 
 void PathFollow3D::_notification(int p_what) {
