@@ -245,17 +245,17 @@
 		</member>
 	</members>
 	<constants>
-		<constant name="INTERPOLATION_LERP" value="0" enum="InterpolationMode">
-			Use [method lerp] to calculate interpolation between points.
-		</constant>
-		<constant name="INTERPOLATION_SMOOTHSTEP" value="1" enum="InterpolationMode">
-			Use [method smoothstep] to calculate smoother interpolation between points.
-		</constant>
 		<constant name="TILT_AXIS_X" value="0" enum="TiltAxis">
 			Use the X axis for tilt rotations defined in curve points.
 		</constant>
 		<constant name="TILT_AXIS_Z" value="1" enum="TiltAxis">
 			Use the Z axis for tilt rotations defined in curve points.
+		</constant>
+		<constant name="INTERPOLATION_LERP" value="0" enum="InterpolationMode">
+			Use [method lerp] to calculate interpolation between points.
+		</constant>
+		<constant name="INTERPOLATION_SMOOTHSTEP" value="1" enum="InterpolationMode">
+			Use [method smoothstep] to calculate smoother interpolation between points.
 		</constant>
 	</constants>
 </class>

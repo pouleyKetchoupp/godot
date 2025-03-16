@@ -1517,7 +1517,8 @@ real_t Curve3D::_interpolate_value(real_t p_begin, real_t p_end, InterpolationMo
 			return Math::lerp(p_begin, p_end, p_t);
 		} break;
 		case INTERPOLATION_SMOOTHSTEP: {
-			return Math::lerp(p_begin, p_end, Math::smoothstep(0.0f, 1.0f, p_t));
+			const real_t t_smooth = Math::smoothstep((real_t)0.0, (real_t)1.0, p_t);
+			return Math::lerp(p_begin, p_end, t_smooth);
 		} break;
 	}
 
@@ -1891,14 +1892,14 @@ Basis Curve3D::_sample_posture(Interval p_interval, bool p_apply_tilt, bool p_ap
 	if (p_apply_tilt) {
 		const real_t tilt = _sample_baked_tilt(p_interval);
 		const uint32_t tilt_axis_index = get_tilt_axis_index();
-		Vector3 tilt_axis = -frame.get_column(tilt_axis_index);
-		frame.rotate(tilt_axis, tilt);
+		Vector3 frame_tilt_axis = -frame.get_column(tilt_axis_index);
+		frame.rotate(frame_tilt_axis, tilt);
 	}
 
 	if (p_apply_twist) {
 		const real_t twist = _sample_baked_twist(p_interval);
-		Vector3 twist_axis = frame.get_column(1);
-		frame.rotate(twist_axis, twist);
+		Vector3 frame_twist_axis = frame.get_column(1);
+		frame.rotate(frame_twist_axis, twist);
 	}
 
 	return frame;
@@ -1920,14 +1921,14 @@ Basis Curve3D::get_point_baked_posture(int p_index, bool p_apply_tilt, bool p_ap
 	if (p_apply_tilt) {
 		const real_t tilt = points[p_index].tilt;
 		const uint32_t tilt_axis_index = get_tilt_axis_index();
-		Vector3 tilt_axis = -frame.get_column(tilt_axis_index);
-		frame.rotate(tilt_axis, tilt);
+		Vector3 frame_tilt_axis = -frame.get_column(tilt_axis_index);
+		frame.rotate(frame_tilt_axis, tilt);
 	}
 
 	if (p_apply_twist) {
 		const real_t twist = points[p_index].twist;
-		Vector3 twist_axis = frame.get_column(1);
-		frame.rotate(twist_axis, twist);
+		Vector3 frame_twist_axis = frame.get_column(1);
+		frame.rotate(frame_twist_axis, twist);
 	}
 
 	return frame;
