@@ -1,2 +1,23 @@
 Godot 4.3
-2024.12.31 [Physics] Allow indirect parenting for shapes
+Tetris: 2024.12.31 [Physics] Allow indirect parenting for shapes
+2025.02.17 [Render] Add sample_directional_shadow to support custom shadow shaders
+2025.03.01 [Animation] Fix movie clips not showing in animation tracks when too short
+2025.03.03 [Animation] Fix seek for animation track playback when skipping to the middle of an animation
+2025.03.05 [Nodes] Add menu option to lock axes in Path3D gizmo
+2025.03.05 [Nodes] Add support for twist angles in Path3D
+2025.03.06 [Render] Add support for custom vertex buffers in ImmediateMesh
+2025.03.07 [Render] Add project setting to modify default editor camera layers
+2025.03.08 [Render] Add pre_draw and post_draw Viewport signals
+2025.03.08 [Misc][CherryPick] Fix github runners compilation on windows
+2025.03.08 [Misc] Documentation fixups
+2025.03.08 [Platform][CherryPick] Update Vulkan SDK install script to fix macos github runner
+2025.03.08 [Misc] Fix GDExtension compatibility failing on github runner
+2025.03.10 [Render] Add editor option to disable shader updates while typing
+2025.03.12 [Render] Update ViewportTexture path relative to its local scene instead of the Viewport owner
+2025.03.12 [Render] Fix errors with ViewportTexture loaded from instantiated scene
+2025.03.13 [Nodes] Don't update PathFollow3D transform when it doesn't change
+2025.03.15 [Nodes] Add tilt_axis option in Curve3D to choose which axis is used
+2025.03.15 [Nodes] Lock axes when adding points in Path3D gizmo
+2025.03.15 [Nodes] Apply tilt and twist even when setting no rotation in PathFollow3D
+2025.03.15 [Nodes] Add option to use smoothstep for tilt and twist interpolation in Curve3D
+Pepper: 2025.03.15 [Misc] Update version history
