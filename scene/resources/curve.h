@@ -251,6 +251,13 @@ public:
 class Curve3D : public Resource {
 	GDCLASS(Curve3D, Resource);
 
+public:
+	enum TiltAxis {
+		TILT_AXIS_X,
+		TILT_AXIS_Z,
+	};
+
+private:
 	struct Point {
 		Vector3 in;
 		Vector3 out;
@@ -292,6 +299,7 @@ class Curve3D : public Resource {
 
 	real_t bake_interval = 0.2;
 	bool up_vector_enabled = true;
+	TiltAxis tilt_axis = TILT_AXIS_Z;
 
 	void _bake_segment3d(RBMap<real_t, Vector3> &r_bake, real_t p_begin, real_t p_end, const Vector3 &p_a, const Vector3 &p_out, const Vector3 &p_b, const Vector3 &p_in, int p_depth, int p_max_depth, real_t p_tol) const;
 	void _bake_segment3d_even_length(RBMap<real_t, Vector3> &r_bake, real_t p_begin, real_t p_end, const Vector3 &p_a, const Vector3 &p_out, const Vector3 &p_b, const Vector3 &p_in, int p_depth, int p_max_depth, real_t p_length) const;
@@ -344,6 +352,9 @@ public:
 	real_t get_bake_interval() const;
 	void set_up_vector_enabled(bool p_enable);
 	bool is_up_vector_enabled() const;
+	void set_tilt_axis(TiltAxis p_tilt_axis);
+	TiltAxis get_tilt_axis() const;
+	uint32_t get_tilt_axis_index() const;
 
 	real_t get_baked_length() const;
 	Vector3 sample_baked(real_t p_offset, bool p_cubic = false) const;
@@ -364,5 +375,7 @@ public:
 
 	Curve3D();
 };
+
+VARIANT_ENUM_CAST(Curve3D::TiltAxis);
 
 #endif // CURVE_H

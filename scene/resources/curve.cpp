@@ -1877,7 +1877,8 @@ Basis Curve3D::_sample_posture(Interval p_interval, bool p_apply_tilt, bool p_ap
 
 	if (p_apply_tilt) {
 		const real_t tilt = _sample_baked_tilt(p_interval);
-		Vector3 tilt_axis = -frame.get_column(2);
+		const uint32_t tilt_axis_index = get_tilt_axis_index();
+		Vector3 tilt_axis = -frame.get_column(tilt_axis_index);
 		frame.rotate(tilt_axis, tilt);
 	}
 
@@ -1905,7 +1906,8 @@ Basis Curve3D::get_point_baked_posture(int p_index, bool p_apply_tilt, bool p_ap
 
 	if (p_apply_tilt) {
 		const real_t tilt = points[p_index].tilt;
-		Vector3 tilt_axis = -frame.get_column(2);
+		const uint32_t tilt_axis_index = get_tilt_axis_index();
+		Vector3 tilt_axis = -frame.get_column(tilt_axis_index);
 		frame.rotate(tilt_axis, tilt);
 	}
 
@@ -2159,6 +2161,19 @@ bool Curve3D::is_up_vector_enabled() const {
 	return up_vector_enabled;
 }
 
+void Curve3D::set_tilt_axis(TiltAxis p_tilt_axis) {
+	tilt_axis = p_tilt_axis;
+	mark_dirty();
+}
+
+Curve3D::TiltAxis Curve3D::get_tilt_axis() const {
+	return tilt_axis;
+}
+
+uint32_t Curve3D::get_tilt_axis_index() const {
+	return (tilt_axis == TILT_AXIS_X) ? 0 : 2;
+}
+
 Dictionary Curve3D::_get_data() const {
 	Dictionary dc;
 
@@ -2399,6 +2414,8 @@ void Curve3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_bake_interval"), &Curve3D::get_bake_interval);
 	ClassDB::bind_method(D_METHOD("set_up_vector_enabled", "enable"), &Curve3D::set_up_vector_enabled);
 	ClassDB::bind_method(D_METHOD("is_up_vector_enabled"), &Curve3D::is_up_vector_enabled);
+	ClassDB::bind_method(D_METHOD("set_tilt_axis", "tilt_axis"), &Curve3D::set_tilt_axis);
+	ClassDB::bind_method(D_METHOD("get_tilt_axis"), &Curve3D::get_tilt_axis);
 
 	ClassDB::bind_method(D_METHOD("get_baked_length"), &Curve3D::get_baked_length);
 	ClassDB::bind_method(D_METHOD("sample_baked", "offset", "cubic"), &Curve3D::sample_baked, DEFVAL(0.0), DEFVAL(false));
@@ -2422,6 +2439,12 @@ void Curve3D::_bind_methods() {
 
 	ADD_GROUP("Up Vector", "up_vector_");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "up_vector_enabled"), "set_up_vector_enabled", "is_up_vector_enabled");
+
+	ADD_GROUP("Tilt", "tilt_");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "tilt_axis", PROPERTY_HINT_ENUM, "X,Z"), "set_tilt_axis", "get_tilt_axis");
+
+	BIND_ENUM_CONSTANT(TILT_AXIS_X);
+	BIND_ENUM_CONSTANT(TILT_AXIS_Z);
 }
 
 Curve3D::Curve3D() {}

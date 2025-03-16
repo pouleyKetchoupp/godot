@@ -192,15 +192,16 @@ void Path3DGizmo::set_handle(int p_id, bool p_secondary, Camera3D *p_camera, con
 			const int idx = info.point_idx;
 			const Vector3 position = c->get_point_position(idx);
 			const Basis posture = c->get_point_baked_posture(idx);
-			const Vector3 tangent = -posture.get_column(2);
+			const uint32_t side_axis_index = c->get_tilt_axis_index();
+			const Vector3 tilt_axis = -posture.get_column(side_axis_index);
 			const Vector3 up = posture.get_column(1);
-			const Plane tilt_plane_global = gt.xform(Plane(tangent, position));
+			const Plane tilt_plane_global = gt.xform(Plane(tilt_axis, position));
 
 			Vector3 intersection;
 
 			if (tilt_plane_global.intersects_ray(ray_from, ray_dir, &intersection)) {
 				Vector3 direction = gi.xform(intersection) - position;
-				real_t tilt_angle = up.signed_angle_to(direction, tangent);
+				real_t tilt_angle = up.signed_angle_to(direction, tilt_axis);
 
 				if (Node3DEditor::get_singleton()->is_snap_enabled()) {
 					real_t snap_degrees = Node3DEditor::get_singleton()->get_rotate_snap();
@@ -479,7 +480,8 @@ void Path3DGizmo::redraw() {
 				{
 					const Basis posture = c->get_point_baked_posture(idx, false);
 					const Vector3 up = posture.get_column(1);
-					const Vector3 side = posture.get_column(0);
+					const uint32_t side_axis_index = (c->get_tilt_axis() == Curve3D::TILT_AXIS_X) ? 2 : 0;
+					const Vector3 side = posture.get_column(side_axis_index);
 
 					PackedVector3Array disk;
 					disk.append(pos);

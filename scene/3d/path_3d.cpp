@@ -255,7 +255,8 @@ void PathFollow3D::_update_transform() {
 		t.origin = pos;
 	} else {
 		t = c->sample_baked_with_rotation(progress, cubic, false, false);
-		Vector3 tangent = -t.basis.get_column(2); // Retain tangent for applying tilt.
+		const uint32_t tilt_axis_index = c->get_tilt_axis_index();
+		Vector3 tilt_axis = -t.basis.get_column(tilt_axis_index); // Retain axis for applying tilt.
 		Vector3 up = t.basis.get_column(1); // Retain up for applying twist.
 		t = PathFollow3D::correct_posture(t, rotation_mode);
 
@@ -267,7 +268,7 @@ void PathFollow3D::_update_transform() {
 		// Apply tilt *after* correct_posture().
 		if (tilt_enabled) {
 			const real_t tilt = c->sample_baked_tilt(progress);
-			t.basis.rotate(tangent, tilt);
+			t.basis.rotate(tilt_axis, tilt);
 		}
 
 		// Apply twist *after* correct_posture().
