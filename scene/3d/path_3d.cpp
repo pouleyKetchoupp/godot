@@ -253,6 +253,22 @@ void PathFollow3D::_update_transform() {
 	if (rotation_mode == ROTATION_NONE) {
 		Vector3 pos = c->sample_baked(progress, cubic);
 		t.origin = pos;
+
+		const uint32_t tilt_axis_index = c->get_tilt_axis_index();
+		Vector3 tilt_axis = -t.basis.get_column(tilt_axis_index); // Retain axis for applying tilt.
+		Vector3 up = t.basis.get_column(1); // Retain up for applying twist
+
+		// Apply tilt.
+		if (tilt_enabled) {
+			const real_t tilt = c->sample_baked_tilt(progress);
+			t.basis.rotate(tilt_axis, tilt);
+		}
+
+		// Apply twist.
+		if (twist_enabled) {
+			const real_t twist = c->sample_baked_twist(progress);
+			t.basis.rotate(up, twist);
+		}
 	} else {
 		t = c->sample_baked_with_rotation(progress, cubic, false, false);
 		const uint32_t tilt_axis_index = c->get_tilt_axis_index();
