@@ -695,8 +695,20 @@ EditorPlugin::AfterGUIInput Path3DEditorPlugin::forward_3d_gui_input(Camera3D *p
 
 				Vector3 inters;
 				if (p.intersects_ray(ray_from, ray_dir, &inters)) {
+					Vector3 local = it.xform(inters);
+
+					if (Path3DEditorPlugin::singleton->lock_x_enabled()) {
+						local.x = 0.f;
+					}
+					if (Path3DEditorPlugin::singleton->lock_y_enabled()) {
+						local.y = 0.f;
+					}
+					if (Path3DEditorPlugin::singleton->lock_z_enabled()) {
+						local.z = 0.f;
+					}
+
 					ur->create_action(TTR("Add Point to Curve"));
-					ur->add_do_method(c.ptr(), "add_point", it.xform(inters), Vector3(), Vector3(), -1);
+					ur->add_do_method(c.ptr(), "add_point", local, Vector3(), Vector3(), -1);
 					ur->add_undo_method(c.ptr(), "remove_point", c->get_point_count());
 					ur->commit_action();
 					return EditorPlugin::AFTER_GUI_INPUT_STOP;
