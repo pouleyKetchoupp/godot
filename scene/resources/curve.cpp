@@ -1511,6 +1511,19 @@ void Curve3D::mark_dirty() {
 	emit_changed();
 }
 
+real_t Curve3D::_interpolate_value(real_t p_begin, real_t p_end, InterpolationMode p_interpolation_mode, real_t p_t) const {
+	switch (p_interpolation_mode) {
+		case INTERPOLATION_LERP: {
+			return Math::lerp(p_begin, p_end, p_t);
+		} break;
+		case INTERPOLATION_SMOOTHSTEP: {
+			return Math::lerp(p_begin, p_end, Math::smoothstep(0.0f, 1.0f, p_t));
+		} break;
+	}
+
+	ERR_FAIL_V_MSG(0.0, "Invalid interpolation mode.");
+}
+
 void Curve3D::_bake_segment3d(RBMap<real_t, Vector3> &r_bake, real_t p_begin, real_t p_end, const Vector3 &p_a, const Vector3 &p_out, const Vector3 &p_b, const Vector3 &p_in, int p_depth, int p_max_depth, real_t p_tol) const {
 	real_t mp = p_begin + (p_end - p_begin) * 0.5;
 	Vector3 beg = p_a.bezier_interpolate(p_a + p_out, p_b + p_in, p_b, p_begin);
@@ -1640,8 +1653,8 @@ void Curve3D::_bake() const {
 		// Collect positions and sample tilts, twists and tangents for each baked points.
 		bpw[0] = points[0].position;
 		bfw[0] = _calculate_tangent(points[0].position, points[0].position + points[0].out, points[1].position + points[1].in, points[1].position, 0.0);
-		btiw[0] = points[0].tilt;
-		btww[0] = points[0].twist;
+		btiw[0] = _interpolate_value(points[0].tilt, points[1].tilt, tilt_interpolation, 0.0);
+		btww[0] = _interpolate_value(points[0].twist, points[1].twist, twist_interpolation, 0.0);
 		int pidx = 0;
 
 		for (int i = 0; i < points.size() - 1; i++) {
@@ -1649,15 +1662,15 @@ void Curve3D::_bake() const {
 				pidx++;
 				bpw[pidx] = E.value;
 				bfw[pidx] = _calculate_tangent(points[i].position, points[i].position + points[i].out, points[i + 1].position + points[i + 1].in, points[i + 1].position, E.key);
-				btiw[pidx] = Math::lerp(points[i].tilt, points[i + 1].tilt, E.key);
-				btww[pidx] = Math::lerp(points[i].twist, points[i + 1].twist, E.key);
+				btiw[pidx] = _interpolate_value(points[i].tilt, points[i + 1].tilt, tilt_interpolation, E.key);
+				btww[pidx] = _interpolate_value(points[i].twist, points[i + 1].twist, twist_interpolation, E.key);
 			}
 
 			pidx++;
 			bpw[pidx] = points[i + 1].position;
 			bfw[pidx] = _calculate_tangent(points[i].position, points[i].position + points[i].out, points[i + 1].position + points[i + 1].in, points[i + 1].position, 1.0);
-			btiw[pidx] = points[i + 1].tilt;
-			btww[pidx] = points[i + 1].twist;
+			btiw[pidx] = _interpolate_value(points[i].tilt, points[i + 1].tilt, tilt_interpolation, 1.0);
+			btww[pidx] = _interpolate_value(points[i].twist, points[i + 1].twist, twist_interpolation, 1.0);
 		}
 
 		// Recalculate the baked distances.
@@ -2174,6 +2187,22 @@ uint32_t Curve3D::get_tilt_axis_index() const {
 	return (tilt_axis == TILT_AXIS_X) ? 0 : 2;
 }
 
+void Curve3D::set_tilt_interpolation(InterpolationMode p_tilt_interpolation) {
+	tilt_interpolation = p_tilt_interpolation;
+}
+
+Curve3D::InterpolationMode Curve3D::get_tilt_interpolation() const {
+	return tilt_interpolation;
+}
+
+void Curve3D::set_twist_interpolation(InterpolationMode p_twist_interpolation) {
+	twist_interpolation = p_twist_interpolation;
+}
+
+Curve3D::InterpolationMode Curve3D::get_twist_interpolation() const {
+	return twist_interpolation;
+}
+
 Dictionary Curve3D::_get_data() const {
 	Dictionary dc;
 
@@ -2416,6 +2445,10 @@ void Curve3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_up_vector_enabled"), &Curve3D::is_up_vector_enabled);
 	ClassDB::bind_method(D_METHOD("set_tilt_axis", "tilt_axis"), &Curve3D::set_tilt_axis);
 	ClassDB::bind_method(D_METHOD("get_tilt_axis"), &Curve3D::get_tilt_axis);
+	ClassDB::bind_method(D_METHOD("set_tilt_interpolation", "tilt_interpolation"), &Curve3D::set_tilt_interpolation);
+	ClassDB::bind_method(D_METHOD("get_tilt_interpolation"), &Curve3D::get_tilt_interpolation);
+	ClassDB::bind_method(D_METHOD("set_twist_interpolation", "twist_interpolation"), &Curve3D::set_twist_interpolation);
+	ClassDB::bind_method(D_METHOD("get_twist_interpolation"), &Curve3D::get_twist_interpolation);
 
 	ClassDB::bind_method(D_METHOD("get_baked_length"), &Curve3D::get_baked_length);
 	ClassDB::bind_method(D_METHOD("sample_baked", "offset", "cubic"), &Curve3D::sample_baked, DEFVAL(0.0), DEFVAL(false));
@@ -2442,9 +2475,16 @@ void Curve3D::_bind_methods() {
 
 	ADD_GROUP("Tilt", "tilt_");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "tilt_axis", PROPERTY_HINT_ENUM, "X,Z"), "set_tilt_axis", "get_tilt_axis");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "tilt_interpolation", PROPERTY_HINT_ENUM, "Lerp,Smoothstep"), "set_tilt_interpolation", "get_tilt_interpolation");
+
+	ADD_GROUP("Twist", "twist_");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "twist_interpolation", PROPERTY_HINT_ENUM, "Lerp,Smoothstep"), "set_twist_interpolation", "get_twist_interpolation");
 
 	BIND_ENUM_CONSTANT(TILT_AXIS_X);
 	BIND_ENUM_CONSTANT(TILT_AXIS_Z);
+
+	BIND_ENUM_CONSTANT(INTERPOLATION_LERP);
+	BIND_ENUM_CONSTANT(INTERPOLATION_SMOOTHSTEP);
 }
 
 Curve3D::Curve3D() {}

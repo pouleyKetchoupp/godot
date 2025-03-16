@@ -234,11 +234,23 @@
 		<member name="tilt_axis" type="int" setter="set_tilt_axis" getter="get_tilt_axis" enum="Curve3D.TiltAxis" default="1">
 			Defines which axis is used for tilt rotations defined in curve points, defaults to [constant Curve3D.TILT_AXIS_Z].
 		</member>
+		<member name="tilt_interpolation" type="int" setter="set_tilt_interpolation" getter="get_tilt_interpolation" enum="Curve3D.InterpolationMode" default="0">
+			Defines the interpolation method between tilt rotations defined in curve points, defaults to [constant Curve3D.INTERPOLATION_LERP].
+		</member>
+		<member name="twist_interpolation" type="int" setter="set_twist_interpolation" getter="get_twist_interpolation" enum="Curve3D.InterpolationMode" default="0">
+			Defines the interpolation method between twist rotations defined in curve points, defaults to [constant Curve3D.INTERPOLATION_LERP].
+		</member>
 		<member name="up_vector_enabled" type="bool" setter="set_up_vector_enabled" getter="is_up_vector_enabled" default="true">
 			If [code]true[/code], the curve will bake up vectors used for orientation. This is used when [member PathFollow3D.rotation_mode] is set to [constant PathFollow3D.ROTATION_ORIENTED]. Changing it forces the cache to be recomputed.
 		</member>
 	</members>
 	<constants>
+		<constant name="INTERPOLATION_LERP" value="0" enum="InterpolationMode">
+			Use [method lerp] to calculate interpolation between points.
+		</constant>
+		<constant name="INTERPOLATION_SMOOTHSTEP" value="1" enum="InterpolationMode">
+			Use [method smoothstep] to calculate smoother interpolation between points.
+		</constant>
 		<constant name="TILT_AXIS_X" value="0" enum="TiltAxis">
 			Use the X axis for tilt rotations defined in curve points.
 		</constant>

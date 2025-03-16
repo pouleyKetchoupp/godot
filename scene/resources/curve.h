@@ -257,6 +257,11 @@ public:
 		TILT_AXIS_Z,
 	};
 
+	enum InterpolationMode {
+		INTERPOLATION_LERP,
+		INTERPOLATION_SMOOTHSTEP,
+	};
+
 private:
 	struct Point {
 		Vector3 in;
@@ -300,6 +305,10 @@ private:
 	real_t bake_interval = 0.2;
 	bool up_vector_enabled = true;
 	TiltAxis tilt_axis = TILT_AXIS_Z;
+	InterpolationMode tilt_interpolation = INTERPOLATION_LERP;
+	InterpolationMode twist_interpolation = INTERPOLATION_LERP;
+
+	real_t _interpolate_value(real_t p_begin, real_t p_end, InterpolationMode p_interpolation_mode, real_t p_t) const;
 
 	void _bake_segment3d(RBMap<real_t, Vector3> &r_bake, real_t p_begin, real_t p_end, const Vector3 &p_a, const Vector3 &p_out, const Vector3 &p_b, const Vector3 &p_in, int p_depth, int p_max_depth, real_t p_tol) const;
 	void _bake_segment3d_even_length(RBMap<real_t, Vector3> &r_bake, real_t p_begin, real_t p_end, const Vector3 &p_a, const Vector3 &p_out, const Vector3 &p_b, const Vector3 &p_in, int p_depth, int p_max_depth, real_t p_length) const;
@@ -355,6 +364,10 @@ public:
 	void set_tilt_axis(TiltAxis p_tilt_axis);
 	TiltAxis get_tilt_axis() const;
 	uint32_t get_tilt_axis_index() const;
+	void set_tilt_interpolation(InterpolationMode p_tilt_interpolation);
+	InterpolationMode get_tilt_interpolation() const;
+	void set_twist_interpolation(InterpolationMode p_twist_interpolation);
+	InterpolationMode get_twist_interpolation() const;
 
 	real_t get_baked_length() const;
 	Vector3 sample_baked(real_t p_offset, bool p_cubic = false) const;
@@ -377,5 +390,6 @@ public:
 };
 
 VARIANT_ENUM_CAST(Curve3D::TiltAxis);
+VARIANT_ENUM_CAST(Curve3D::InterpolationMode);
 
 #endif // CURVE_H
