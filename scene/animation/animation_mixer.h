@@ -296,12 +296,17 @@ protected:
 	};
 
 	struct TrackCacheAnimation : public TrackCache {
-		bool playing = false;
-
 		TrackCacheAnimation() {
 			type = Animation::TYPE_ANIMATION;
 		}
 		~TrackCacheAnimation() {}
+	};
+
+	struct TrackCachePathFollow : public TrackCache {
+		TrackCachePathFollow() {
+			type = Animation::TYPE_PATH_FOLLOW;
+		}
+		~TrackCachePathFollow() {}
 	};
 
 	RootMotionCache root_motion_cache;

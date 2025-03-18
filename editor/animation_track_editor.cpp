@@ -44,6 +44,7 @@
 #include "editor/plugins/animation_player_editor_plugin.h"
 #include "editor/themes/editor_scale.h"
 #include "scene/3d/mesh_instance_3d.h"
+#include "scene/3d/path_3d.h"
 #include "scene/animation/animation_player.h"
 #include "scene/animation/tween.h"
 #include "scene/gui/check_box.h"
@@ -391,6 +392,55 @@ bool AnimationTrackKeyEdit::_set(const StringName &p_name, const Variant &p_valu
 				return true;
 			}
 		} break;
+		case Animation::TYPE_PATH_FOLLOW: {
+			if (name == "motion_speed") {
+				const real_t value = p_value;
+
+				setting = true;
+				undo_redo->create_action(TTR("Animation Change Keyframe Value"), UndoRedo::MERGE_ENDS);
+				const real_t prev = animation->path_follow_track_get_key_motion_speed(track, key);
+				undo_redo->add_do_method(animation.ptr(), "path_follow_track_set_key_motion_speed", track, key, value);
+				undo_redo->add_undo_method(animation.ptr(), "path_follow_track_set_key_motion_speed", track, key, prev);
+				undo_redo->add_do_method(this, "_update_obj", animation);
+				undo_redo->add_undo_method(this, "_update_obj", animation);
+				undo_redo->commit_action();
+
+				setting = false;
+				return true;
+			}
+
+			if (name == "start_point") {
+				const int value = p_value;
+
+				setting = true;
+				undo_redo->create_action(TTR("Animation Change Keyframe Value"), UndoRedo::MERGE_ENDS);
+				const int prev = animation->path_follow_track_get_key_start_point(track, key);
+				undo_redo->add_do_method(animation.ptr(), "path_follow_track_set_key_start_point", track, key, value);
+				undo_redo->add_undo_method(animation.ptr(), "path_follow_track_set_key_start_point", track, key, prev);
+				undo_redo->add_do_method(this, "_update_obj", animation);
+				undo_redo->add_undo_method(this, "_update_obj", animation);
+				undo_redo->commit_action();
+
+				setting = false;
+				return true;
+			}
+
+			if (name == "end_point") {
+				const int value = p_value;
+
+				setting = true;
+				undo_redo->create_action(TTR("Animation Change Keyframe Value"), UndoRedo::MERGE_ENDS);
+				const int prev = animation->path_follow_track_get_key_end_point(track, key);
+				undo_redo->add_do_method(animation.ptr(), "path_follow_track_set_key_end_point", track, key, value);
+				undo_redo->add_undo_method(animation.ptr(), "path_follow_track_set_key_end_point", track, key, prev);
+				undo_redo->add_do_method(this, "_update_obj", animation);
+				undo_redo->add_undo_method(this, "_update_obj", animation);
+				undo_redo->commit_action();
+
+				setting = false;
+				return true;
+			}
+		} break;
 	}
 
 	return false;
@@ -500,6 +550,23 @@ bool AnimationTrackKeyEdit::_get(const StringName &p_name, Variant &r_ret) const
 		case Animation::TYPE_ANIMATION: {
 			if (name == "animation") {
 				r_ret = animation->animation_track_get_key_animation(track, key);
+				return true;
+			}
+
+		} break;
+		case Animation::TYPE_PATH_FOLLOW: {
+			if (name == "motion_speed") {
+				r_ret = animation->path_follow_track_get_key_motion_speed(track, key);
+				return true;
+			}
+
+			if (name == "start_point") {
+				r_ret = animation->path_follow_track_get_key_start_point(track, key);
+				return true;
+			}
+
+			if (name == "end_point") {
+				r_ret = animation->path_follow_track_get_key_end_point(track, key);
 				return true;
 			}
 
@@ -625,6 +692,28 @@ void AnimationTrackKeyEdit::_get_property_list(List<PropertyInfo> *p_list) const
 			animations += "[stop]";
 
 			p_list->push_back(PropertyInfo(Variant::STRING_NAME, PNAME("animation"), PROPERTY_HINT_ENUM, animations));
+
+		} break;
+		case Animation::TYPE_PATH_FOLLOW: {
+			int point_count = 0;
+			if (root_path) {
+				const PathFollow3D *path_follow = Object::cast_to<const PathFollow3D>(root_path->get_node_or_null(animation->track_get_path(track)));
+				if (path_follow) {
+					const Path3D *path = Object::cast_to<Path3D>(path_follow->get_parent());
+					if (path) {
+						const Curve3D *curve = *path->get_curve();
+						if (curve) {
+							point_count = curve->get_point_count();
+						}
+					}
+				}
+			}
+			String hint_string_speed = PNAME("0,10.0f,0.001,or_greater");
+			p_list->push_back(PropertyInfo(Variant::FLOAT, PNAME("motion_speed"), PROPERTY_HINT_RANGE, hint_string_speed));
+			String hint_string_point_start = vformat("0,%d", point_count ? point_count - 1 : 0);
+			p_list->push_back(PropertyInfo(Variant::FLOAT, PNAME("start_point"), PROPERTY_HINT_RANGE, hint_string_point_start));
+			String hint_string_point_end = vformat("-1,%d", point_count ? point_count - 1 : 0);
+			p_list->push_back(PropertyInfo(Variant::FLOAT, PNAME("end_point"), PROPERTY_HINT_RANGE, hint_string_point_end));
 
 		} break;
 	}
@@ -945,6 +1034,42 @@ bool AnimationMultiTrackKeyEdit::_set(const StringName &p_name, const Variant &p
 						update_obj = true;
 					}
 				} break;
+				case Animation::TYPE_PATH_FOLLOW: {
+					if (name == "motion_speed") {
+						const real_t value = p_value;
+
+						if (!setting) {
+							setting = true;
+							undo_redo->create_action(TTR("Animation Multi Change Keyframe Value"), UndoRedo::MERGE_ENDS);
+						}
+						const real_t prev = animation->path_follow_track_get_key_motion_speed(track, key);
+						undo_redo->add_do_method(animation.ptr(), "path_follow_track_set_key_motion_speed", track, key, value);
+						undo_redo->add_undo_method(animation.ptr(), "path_follow_track_set_key_motion_speed", track, key, prev);
+						update_obj = true;
+					} else if (name == "start_point") {
+						const int value = p_value;
+
+						if (!setting) {
+							setting = true;
+							undo_redo->create_action(TTR("Animation Multi Change Keyframe Value"), UndoRedo::MERGE_ENDS);
+						}
+						const int prev = animation->path_follow_track_get_key_start_point(track, key);
+						undo_redo->add_do_method(animation.ptr(), "path_follow_track_set_key_start_point", track, key, value);
+						undo_redo->add_undo_method(animation.ptr(), "path_follow_track_set_key_start_point", track, key, prev);
+						update_obj = true;
+					} else if (name == "end_point") {
+						const int value = p_value;
+
+						if (!setting) {
+							setting = true;
+							undo_redo->create_action(TTR("Animation Multi Change Keyframe Value"), UndoRedo::MERGE_ENDS);
+						}
+						const int prev = animation->path_follow_track_get_key_end_point(track, key);
+						undo_redo->add_do_method(animation.ptr(), "path_follow_track_set_key_end_point", track, key, value);
+						undo_redo->add_undo_method(animation.ptr(), "path_follow_track_set_key_end_point", track, key, prev);
+						update_obj = true;
+					}
+				} break;
 			}
 		}
 	}
@@ -1077,6 +1202,23 @@ bool AnimationMultiTrackKeyEdit::_get(const StringName &p_name, Variant &r_ret) 
 				case Animation::TYPE_ANIMATION: {
 					if (name == "animation") {
 						r_ret = animation->animation_track_get_key_animation(track, key);
+						return true;
+					}
+
+				} break;
+				case Animation::TYPE_PATH_FOLLOW: {
+					if (name == "motion_speed") {
+						r_ret = animation->path_follow_track_get_key_motion_speed(track, key);
+						return true;
+					}
+
+					if (name == "start_point") {
+						r_ret = animation->path_follow_track_get_key_start_point(track, key);
+						return true;
+					}
+
+					if (name == "end_point") {
+						r_ret = animation->path_follow_track_get_key_end_point(track, key);
 						return true;
 					}
 
@@ -1231,6 +1373,27 @@ void AnimationMultiTrackKeyEdit::_get_property_list(List<PropertyInfo> *p_list) 
 				animations += "[stop]";
 
 				p_list->push_back(PropertyInfo(Variant::STRING_NAME, "animation", PROPERTY_HINT_ENUM, animations));
+			} break;
+			case Animation::TYPE_PATH_FOLLOW: {
+				int point_count = 0;
+				if (root_path) {
+					const PathFollow3D *path_follow = Object::cast_to<const PathFollow3D>(root_path->get_node_or_null(animation->track_get_path(first_track)));
+					if (path_follow) {
+						const Path3D *path = Object::cast_to<Path3D>(path_follow->get_parent());
+						if (path) {
+							const Curve3D *curve = *path->get_curve();
+							if (curve) {
+								point_count = curve->get_point_count();
+							}
+						}
+					}
+				}
+				String hint_string_speed = PNAME("0,10.0f,0.001,or_greater");
+				p_list->push_back(PropertyInfo(Variant::FLOAT, PNAME("motion_speed"), PROPERTY_HINT_RANGE, hint_string_speed));
+				String hint_string_point_start = vformat("0,%d", point_count ? point_count - 1 : 0);
+				p_list->push_back(PropertyInfo(Variant::FLOAT, PNAME("start_point"), PROPERTY_HINT_RANGE, hint_string_point_start));
+				String hint_string_point_end = vformat("-1,%d", point_count ? point_count - 1 : 0);
+				p_list->push_back(PropertyInfo(Variant::FLOAT, PNAME("end_point"), PROPERTY_HINT_RANGE, hint_string_point_end));
 			} break;
 		}
 	}
@@ -1414,6 +1577,7 @@ void AnimationTimelineEdit::_notification(int p_what) {
 			add_track->get_popup()->add_icon_item(get_editor_theme_icon(SNAME("KeyBlendShape")), TTR("Blend Shape Track..."));
 			add_track->get_popup()->add_icon_item(get_editor_theme_icon(SNAME("KeyCall")), TTR("Call Method Track..."));
 			add_track->get_popup()->add_icon_item(get_editor_theme_icon(SNAME("KeyBezier")), TTR("Bezier Curve Track..."));
+			add_track->get_popup()->add_icon_item(get_editor_theme_icon(SNAME("KeyPathFollow")), TTR("Path Follow Track..."));
 			add_track->get_popup()->add_icon_item(get_editor_theme_icon(SNAME("KeyAudio")), TTR("Audio Playback Track..."));
 			add_track->get_popup()->add_icon_item(get_editor_theme_icon(SNAME("KeyAnimation")), TTR("Animation Playback Track..."));
 		} break;
@@ -2027,6 +2191,8 @@ void AnimationTrackEdit::_notification(int p_what) {
 						text = TTR("Audio Clips:");
 					} else if (animation->track_get_type(track) == Animation::TYPE_ANIMATION) {
 						text = TTR("Animation Clips:");
+					} else if (animation->track_get_type(track) == Animation::TYPE_PATH_FOLLOW) {
+						text = TTR("Path Follow Clips:");
 					} else {
 						text += anim_path.get_concatenated_subnames();
 					}
@@ -2574,7 +2740,7 @@ bool AnimationTrackEdit::_is_value_key_valid(const Variant &p_key_value, Variant
 }
 
 Ref<Texture2D> AnimationTrackEdit::_get_key_type_icon() const {
-	const Ref<Texture2D> type_icons[9] = {
+	const Ref<Texture2D> type_icons[10] = {
 		get_editor_theme_icon(SNAME("KeyValue")),
 		get_editor_theme_icon(SNAME("KeyTrackPosition")),
 		get_editor_theme_icon(SNAME("KeyTrackRotation")),
@@ -2582,6 +2748,7 @@ Ref<Texture2D> AnimationTrackEdit::_get_key_type_icon() const {
 		get_editor_theme_icon(SNAME("KeyTrackBlendShape")),
 		get_editor_theme_icon(SNAME("KeyCall")),
 		get_editor_theme_icon(SNAME("KeyBezier")),
+		get_editor_theme_icon(SNAME("KeyPathFollow")),
 		get_editor_theme_icon(SNAME("KeyAudio")),
 		get_editor_theme_icon(SNAME("KeyAnimation"))
 	};
@@ -2742,6 +2909,18 @@ String AnimationTrackEdit::get_tooltip(const Point2 &p_pos) const {
 				case Animation::TYPE_ANIMATION: {
 					String name = animation->animation_track_get_key_animation(track, key_idx);
 					text += TTR("Animation Clip:") + " " + name + "\n";
+				} break;
+				case Animation::TYPE_PATH_FOLLOW: {
+					const real_t motion_speed = animation->path_follow_track_get_key_motion_speed(track, key_idx);
+					text += TTR("Motion speed:") + " " + rtos(motion_speed) + "\n";
+
+					const int start_point = animation->path_follow_track_get_key_start_point(track, key_idx);
+					text += TTR("From point:") + " " + itos(start_point) + "\n";
+
+					const int end_point = animation->path_follow_track_get_key_end_point(track, key_idx);
+					if (end_point >= 0) {
+						text += TTR("To point:") + " " + itos(end_point) + "\n";
+					}
 				} break;
 			}
 			return text;
@@ -3392,6 +3571,13 @@ AnimationTrackEdit::AnimationTrackEdit() {
 AnimationTrackEdit *AnimationTrackEditPlugin::create_value_track_edit(Object *p_object, Variant::Type p_type, const String &p_property, PropertyHint p_hint, const String &p_hint_string, int p_usage) {
 	if (get_script_instance()) {
 		return Object::cast_to<AnimationTrackEdit>(get_script_instance()->call("create_value_track_edit", p_object, p_type, p_property, p_hint, p_hint_string, p_usage));
+	}
+	return nullptr;
+}
+
+AnimationTrackEdit *AnimationTrackEditPlugin::create_path_follow_track_edit(Object *p_object) {
+	if (get_script_instance()) {
+		return Object::cast_to<AnimationTrackEdit>(get_script_instance()->call("create_path_follow_track_edit", p_object).operator Object *());
 	}
 	return nullptr;
 }
@@ -4461,7 +4647,8 @@ AnimationTrackEditor::TrackIndices AnimationTrackEditor::_confirm_insert(InsertD
 		case Animation::TYPE_BLEND_SHAPE:
 		case Animation::TYPE_VALUE:
 		case Animation::TYPE_AUDIO:
-		case Animation::TYPE_ANIMATION: {
+		case Animation::TYPE_ANIMATION:
+		case Animation::TYPE_PATH_FOLLOW: {
 			value = p_id.value;
 
 		} break;
@@ -4551,7 +4738,7 @@ bool AnimationTrackEditor::is_snap_enabled() const {
 bool AnimationTrackEditor::can_add_reset_key() const {
 	for (const KeyValue<SelectedKey, KeyInfo> &E : selection) {
 		const Animation::TrackType track_type = animation->track_get_type(E.key.track);
-		if (track_type != Animation::TYPE_ANIMATION && track_type != Animation::TYPE_AUDIO && track_type != Animation::TYPE_METHOD) {
+		if (track_type != Animation::TYPE_ANIMATION && track_type != Animation::TYPE_AUDIO && track_type != Animation::TYPE_METHOD && track_type != Animation::TYPE_PATH_FOLLOW) {
 			return true;
 		}
 	}
@@ -4648,6 +4835,25 @@ void AnimationTrackEditor::_update_tracks() {
 				}
 			}
 		}
+
+		if (animation->track_get_type(i) == Animation::TYPE_PATH_FOLLOW) {
+			NodePath path = animation->track_get_path(i);
+
+			Node *node = nullptr;
+			if (root) {
+				node = root->get_node_or_null(path);
+			}
+
+			if (node && Object::cast_to<PathFollow3D>(node)) {
+				for (int j = 0; j < track_edit_plugins.size(); j++) {
+					track_edit = track_edit_plugins.write[j]->create_path_follow_track_edit(node);
+					if (track_edit) {
+						break;
+					}
+				}
+			}
+		}
+
 		if (animation->track_get_type(i) == Animation::TYPE_AUDIO) {
 			for (int j = 0; j < track_edit_plugins.size(); j++) {
 				track_edit = track_edit_plugins.write[j]->create_audio_track_edit();
@@ -5041,6 +5247,20 @@ void AnimationTrackEditor::_new_track_node_selected(NodePath p_path) {
 			undo_redo->commit_action();
 
 		} break;
+		case Animation::TYPE_PATH_FOLLOW: {
+			if (!node->is_class("PathFollow3D")) {
+				EditorNode::get_singleton()->show_warning(TTR("Path follow tracks can only point to PathFollow3D nodes."));
+				return;
+			}
+
+			EditorUndoRedoManager *undo_redo = EditorUndoRedoManager::get_singleton();
+			undo_redo->create_action(TTR("Add Track"));
+			undo_redo->add_do_method(animation.ptr(), "add_track", adding_track_type);
+			undo_redo->add_do_method(animation.ptr(), "track_set_path", animation->get_track_count(), path_to);
+			undo_redo->add_undo_method(animation.ptr(), "remove_track", animation->get_track_count());
+			undo_redo->commit_action();
+
+		} break;
 	}
 }
 
@@ -5299,6 +5519,14 @@ void AnimationTrackEditor::_insert_key_from_track(float p_ofs, int p_track) {
 		} break;
 		case Animation::TYPE_ANIMATION: {
 			id.value = StringName("[stop]");
+		} break;
+		case Animation::TYPE_PATH_FOLLOW: {
+			Dictionary pfk;
+			pfk["motion_speed"] = 1.0;
+			pfk["start_point"] = 0;
+			pfk["end_point"] = -1;
+
+			id.value = pfk;
 		} break;
 		default: {
 			// All track types should be handled by now.
@@ -6060,7 +6288,7 @@ bool AnimationTrackEditor::_is_track_compatible(int p_target_track_idx, Variant:
 					}
 				}
 				return false;
-			default: // Works for TYPE_ANIMATION; TYPE_AUDIO; TYPE_CALL_METHOD; BLEND_SHAPE.
+			default: // Works for TYPE_ANIMATION; TYPE_AUDIO; TYPE_CALL_METHOD; BLEND_SHAPE; TYPE_PATH_FOLLOW.
 				return track_types_equal;
 		}
 	}
@@ -6192,6 +6420,9 @@ void AnimationTrackEditor::_edit_menu_pressed(int p_option) {
 						break;
 					case Animation::TYPE_AUDIO:
 						track_type = TTR("Audio");
+						break;
+					case Animation::TYPE_PATH_FOLLOW:
+						track_type = TTR("PathFollow");
 						break;
 					default: {
 					};
@@ -6623,7 +6854,7 @@ void AnimationTrackEditor::_edit_menu_pressed(int p_option) {
 				const SelectedKey &sk = E.key;
 
 				const Animation::TrackType track_type = animation->track_get_type(E.key.track);
-				if (track_type == Animation::TYPE_ANIMATION || track_type == Animation::TYPE_AUDIO || track_type == Animation::TYPE_METHOD) {
+				if (track_type == Animation::TYPE_ANIMATION || track_type == Animation::TYPE_AUDIO || track_type == Animation::TYPE_METHOD || track_type == Animation::TYPE_PATH_FOLLOW) {
 					continue;
 				}
 

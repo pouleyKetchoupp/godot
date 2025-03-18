@@ -768,6 +768,9 @@ bool AnimationNodeBlendTreeEditor::_update_filters(const Ref<AnimationNode> &ano
 					case Animation::TrackType::TYPE_METHOD: {
 						track_type_name = TTR("Functions");
 					} break;
+					case Animation::TrackType::TYPE_PATH_FOLLOW: {
+						track_type_name = TTR("Path Follow Clips");
+					} break;
 					default: {
 					} break;
 				}

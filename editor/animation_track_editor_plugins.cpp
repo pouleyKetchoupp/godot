@@ -37,6 +37,7 @@
 #include "editor/themes/editor_scale.h"
 #include "scene/2d/animated_sprite_2d.h"
 #include "scene/2d/sprite_2d.h"
+#include "scene/3d/path_3d.h"
 #include "scene/3d/sprite_3d.h"
 #include "scene/animation/animation_player.h"
 #include "scene/resources/text_line.h"
@@ -791,6 +792,181 @@ void AnimationTrackEditVolumeDB::draw_key_link(int p_index, float p_pixels_sec, 
 
 ////////////////////////
 
+/// PATH FOLLOW ///
+
+bool AnimationTrackEditTypePathFollow::get_clip_length(int p_index, float &length) const {
+	Object *object = ObjectDB::get_instance(id);
+
+	if (!object) {
+		return false;
+	}
+
+	const PathFollow3D *path_follow = Object::cast_to<const PathFollow3D>(object);
+	if (!path_follow) {
+		return false;
+	}
+
+	const Path3D *path_node = Object::cast_to<Path3D>(path_follow->get_parent());
+	if (!path_node) {
+		return false;
+	}
+
+	const Curve3D *curve = *path_node->get_curve();
+	if (!curve) {
+		return false;
+	}
+
+	const int max_point_count = curve->get_point_count();
+
+	int start_point = get_animation()->path_follow_track_get_key_start_point(get_track(), p_index);
+	if (start_point < 0) {
+		start_point = 0;
+	}
+	if (start_point >= max_point_count) {
+		start_point = max_point_count - 1;
+	}
+
+	int end_point = get_animation()->path_follow_track_get_key_end_point(get_track(), p_index);
+	if (end_point < 0 || end_point >= max_point_count) {
+		end_point = max_point_count - 1;
+	}
+
+	int point_count = 0;
+	if (start_point <= end_point) {
+		point_count = end_point - start_point + 1;
+	}
+
+	if (point_count < 2) {
+		length = 0.0f;
+		return true;
+	}
+
+	const real_t motion_speed = get_animation()->path_follow_track_get_key_motion_speed(get_track(), p_index);
+	if (motion_speed <= 0.0) {
+		length = 0.0f;
+		return true;
+	}
+
+	const real_t path_length = curve->get_baked_distance(start_point, end_point);
+	length = path_length / motion_speed;
+	return true;
+}
+
+int AnimationTrackEditTypePathFollow::get_key_height() const {
+	if (!ObjectDB::get_instance(id)) {
+		return AnimationTrackEdit::get_key_height();
+	}
+
+	Ref<Font> font = get_theme_font(SceneStringName(font), SNAME("Label"));
+	int font_size = get_theme_font_size(SceneStringName(font_size), SNAME("Label"));
+	return int(font->get_height(font_size) * 1.5);
+}
+
+Rect2 AnimationTrackEditTypePathFollow::get_key_rect(int p_index, float p_pixels_sec) {
+	Ref<Font> font = get_theme_font(SceneStringName(font), SNAME("Label"));
+	const int font_size = get_theme_font_size(SceneStringName(font_size), SNAME("Label"));
+	const real_t font_height = font->get_height(font_size);
+
+	float clip_length;
+	if (get_clip_length(p_index, clip_length)) {
+		if (get_animation()->track_get_key_count(get_track()) > p_index + 1) {
+			clip_length = MIN(clip_length, get_animation()->track_get_key_time(get_track(), p_index + 1) - get_animation()->track_get_key_time(get_track(), p_index));
+		}
+
+		return Rect2(0, 0, MAX(clip_length * p_pixels_sec, font_height * 1.0), get_size().height);
+	} else {
+		return Rect2(0, 0, font_height * 0.8, get_size().height);
+	}
+}
+
+bool AnimationTrackEditTypePathFollow::is_key_selectable_by_distance() const {
+	return false;
+}
+
+void AnimationTrackEditTypePathFollow::draw_key(int p_index, float p_pixels_sec, int p_x, bool p_selected, int p_clip_left, int p_clip_right) {
+	float clip_length;
+	if (get_clip_length(p_index, clip_length)) {
+		float len = clip_length;
+
+		if (get_animation()->track_get_key_count(get_track()) > p_index + 1) {
+			len = MIN(len, get_animation()->track_get_key_time(get_track(), p_index + 1) - get_animation()->track_get_key_time(get_track(), p_index));
+		}
+
+		int pixel_len = len * p_pixels_sec;
+
+		int pixel_begin = p_x;
+		int pixel_end = p_x + pixel_len;
+
+		if (pixel_end < p_clip_left) {
+			return;
+		}
+
+		if (pixel_begin > p_clip_right) {
+			return;
+		}
+
+		int from_x = MAX(pixel_begin, p_clip_left);
+		int to_x = MIN(pixel_end, p_clip_right);
+
+		if (to_x < from_x) {
+			return;
+		}
+
+		const int min_pixel_size = 5;
+		if (to_x == from_x) {
+			to_x = from_x + min_pixel_size;
+		}
+
+		Ref<Font> font = get_theme_font(SceneStringName(font), SNAME("Label"));
+		int font_size = get_theme_font_size(SceneStringName(font_size), SNAME("Label"));
+		int fh = font->get_height(font_size) * 1.5;
+
+		Rect2 rect(from_x, int(get_size().height - fh) / 2, to_x - from_x, fh);
+
+		Color color = get_theme_color(SceneStringName(font_color), SNAME("Label"));
+		Color bg = color;
+		bg.r = 1 - color.r;
+		bg.g = 1 - color.g;
+		bg.b = 1 - color.b;
+		draw_rect(rect, bg);
+
+		const int limit = to_x - from_x - min_pixel_size;
+		if (limit >= 0) {
+			const int start_point = get_animation()->path_follow_track_get_key_start_point(get_track(), p_index);
+			const int end_point = get_animation()->path_follow_track_get_key_end_point(get_track(), p_index);
+			const String label = vformat("%s:%s", itos(start_point), end_point < 0 ? "end" : itos(end_point));
+			draw_string(font, Point2(from_x + 2, int(get_size().height - font->get_height(font_size)) / 2 + font->get_ascent(font_size)), label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color);
+		}
+
+		if (p_selected) {
+			Color accent = get_theme_color(SNAME("accent_color"), EditorStringName(Editor));
+			draw_rect(rect, accent, false);
+		}
+	} else {
+		Ref<Font> font = get_theme_font(SceneStringName(font), SNAME("Label"));
+		int font_size = get_theme_font_size(SceneStringName(font_size), SNAME("Label"));
+		int fh = font->get_height(font_size) * 0.8;
+		Rect2 rect(Vector2(p_x, int(get_size().height - fh) / 2), Size2(fh, fh));
+
+		Color color = get_theme_color(SceneStringName(font_color), SNAME("Label"));
+		draw_rect_clipped(rect, color);
+
+		if (p_selected) {
+			Color accent = get_theme_color(SNAME("accent_color"), EditorStringName(Editor));
+			draw_rect_clipped(rect, accent, false);
+		}
+	}
+}
+
+void AnimationTrackEditTypePathFollow::set_node(Object *p_object) {
+	id = p_object->get_instance_id();
+}
+
+AnimationTrackEditTypePathFollow::AnimationTrackEditTypePathFollow() {
+}
+
+////////////////////////
+
 /// AUDIO ///
 
 void AnimationTrackEditTypeAudio::_preview_changed(ObjectID p_which) {
@@ -1377,6 +1553,12 @@ AnimationTrackEdit *AnimationTrackEditDefaultPlugin::create_value_track_edit(Obj
 	}
 
 	return nullptr;
+}
+
+AnimationTrackEdit *AnimationTrackEditDefaultPlugin::create_path_follow_track_edit(Object *p_object) {
+	AnimationTrackEditTypePathFollow *pf = memnew(AnimationTrackEditTypePathFollow);
+	pf->set_node(p_object);
+	return pf;
 }
 
 AnimationTrackEdit *AnimationTrackEditDefaultPlugin::create_audio_track_edit() {

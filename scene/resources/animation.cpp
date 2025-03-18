@@ -88,6 +88,8 @@ bool Animation::_set(const StringName &p_name, const Variant &p_value) {
 				add_track(TYPE_AUDIO);
 			} else if (type == "animation") {
 				add_track(TYPE_ANIMATION);
+			} else if (type == "path_follow") {
+				add_track(TYPE_PATH_FOLLOW);
 			} else {
 				return false;
 			}
@@ -422,6 +424,47 @@ bool Animation::_set(const StringName &p_name, const Variant &p_value) {
 				}
 
 				return true;
+			} else if (track_get_type(track) == TYPE_PATH_FOLLOW) {
+				PathFollowTrack *pft = static_cast<PathFollowTrack *>(tracks[track]);
+				Dictionary d = p_value;
+				ERR_FAIL_COND_V(!d.has("times"), false);
+				ERR_FAIL_COND_V(!d.has("clips"), false);
+
+				Vector<real_t> times = d["times"];
+				Array clips = d["clips"];
+
+				ERR_FAIL_COND_V(clips.size() != times.size(), false);
+
+				if (times.size()) {
+					int valcount = times.size();
+
+					const real_t *rt = times.ptr();
+
+					pft->values.clear();
+
+					for (int i = 0; i < valcount; i++) {
+						TKey<PathFollowKey> pfk;
+						pfk.time = rt[i];
+
+						Dictionary d2 = clips[i];
+						if (d2.has("motion_speed")) {
+							pfk.value.motion_speed = d2["motion_speed"];
+						}
+						if (d2.has("start_point")) {
+							pfk.value.start_point = d2["start_point"];
+						}
+						if (d2.has("end_point")) {
+							pfk.value.end_point = d2["end_point"];
+						}
+
+						ERR_CONTINUE(pfk.value.start_point < 0);
+						ERR_CONTINUE(pfk.value.end_point >= 0 && pfk.value.end_point < pfk.value.start_point);
+
+						pft->values.push_back(pfk);
+					}
+				}
+
+				return true;
 			} else {
 				return false;
 			}
@@ -504,6 +547,9 @@ bool Animation::_get(const StringName &p_name, Variant &r_ret) const {
 					break;
 				case TYPE_ANIMATION:
 					r_ret = "animation";
+					break;
+				case TYPE_PATH_FOLLOW:
+					r_ret = "path_follow";
 					break;
 			}
 
@@ -820,6 +866,40 @@ bool Animation::_get(const StringName &p_name, Variant &r_ret) const {
 				r_ret = d;
 
 				return true;
+			} else if (track_get_type(track) == TYPE_PATH_FOLLOW) {
+				const PathFollowTrack *pft = static_cast<const PathFollowTrack *>(tracks[track]);
+
+				Dictionary d;
+
+				Vector<real_t> key_times;
+				Array clips;
+
+				int kk = pft->values.size();
+
+				key_times.resize(kk);
+
+				real_t *wti = key_times.ptrw();
+
+				int idx = 0;
+
+				const TKey<PathFollowKey> *vls = pft->values.ptr();
+
+				for (int i = 0; i < kk; i++) {
+					wti[idx] = vls[i].time;
+					Dictionary clip;
+					clip["motion_speed"] = vls[i].value.motion_speed;
+					clip["start_point"] = vls[i].value.start_point;
+					clip["end_point"] = vls[i].value.end_point;
+					clips.push_back(clip);
+					idx++;
+				}
+
+				d["times"] = key_times;
+				d["clips"] = clips;
+
+				r_ret = d;
+
+				return true;
 			}
 		} else {
 			return false;
@@ -899,6 +979,10 @@ int Animation::add_track(TrackType p_type, int p_at_pos) {
 			tracks.insert(p_at_pos, memnew(AnimationTrack));
 
 		} break;
+		case TYPE_PATH_FOLLOW: {
+			tracks.insert(p_at_pos, memnew(PathFollowTrack));
+
+		} break;
 		default: {
 			ERR_PRINT("Unknown track type");
 		}
@@ -959,6 +1043,11 @@ void Animation::remove_track(int p_track) {
 		case TYPE_ANIMATION: {
 			AnimationTrack *an = static_cast<AnimationTrack *>(t);
 			_clear(an->values);
+
+		} break;
+		case TYPE_PATH_FOLLOW: {
+			PathFollowTrack *pft = static_cast<PathFollowTrack *>(t);
+			_clear(pft->values);
 
 		} break;
 	}
@@ -1487,6 +1576,12 @@ void Animation::track_remove_key(int p_track, int p_idx) {
 			an->values.remove_at(p_idx);
 
 		} break;
+		case TYPE_PATH_FOLLOW: {
+			PathFollowTrack *pft = static_cast<PathFollowTrack *>(t);
+			ERR_FAIL_INDEX(p_idx, pft->values.size());
+			pft->values.remove_at(p_idx);
+
+		} break;
 	}
 
 	emit_changed();
@@ -1665,6 +1760,18 @@ int Animation::track_find_key(int p_track, double p_time, FindMode p_find_mode, 
 			return k;
 
 		} break;
+		case TYPE_PATH_FOLLOW: {
+			PathFollowTrack *pft = static_cast<PathFollowTrack *>(t);
+			int k = _find(pft->values, p_time, p_backward, p_limit);
+			if (k < 0 || k >= pft->values.size()) {
+				return -1;
+			}
+			if ((p_find_mode == FIND_MODE_APPROX && !Math::is_equal_approx(pft->values[k].time, p_time)) || (p_find_mode == FIND_MODE_EXACT && pft->values[k].time != p_time)) {
+				return -1;
+			}
+			return k;
+
+		} break;
 	}
 
 	return -1;
@@ -1780,6 +1887,29 @@ int Animation::track_insert_key(int p_track, double p_time, const Variant &p_key
 			ret = _insert(p_time, at->values, ak);
 
 		} break;
+		case TYPE_PATH_FOLLOW: {
+			PathFollowTrack *pft = static_cast<PathFollowTrack *>(t);
+
+			Dictionary k = p_key;
+
+			TKey<PathFollowKey> pfk;
+			pfk.time = p_time;
+			if (k.has("motion_speed")) {
+				pfk.value.motion_speed = k["motion_speed"];
+			}
+			if (k.has("start_point")) {
+				pfk.value.start_point = k["start_point"];
+			}
+			if (k.has("end_point")) {
+				pfk.value.end_point = k["end_point"];
+			}
+
+			ERR_FAIL_COND_V(pfk.value.start_point < 0, -1);
+			ERR_FAIL_COND_V(pfk.value.end_point > 0 && pfk.value.end_point < pfk.value.start_point, -1);
+
+			ret = _insert(p_time, pft->values, pfk);
+
+		} break;
 	}
 
 	emit_changed();
@@ -1840,6 +1970,10 @@ int Animation::track_get_key_count(int p_track) const {
 		case TYPE_ANIMATION: {
 			AnimationTrack *at = static_cast<AnimationTrack *>(t);
 			return at->values.size();
+		} break;
+		case TYPE_PATH_FOLLOW: {
+			PathFollowTrack *pft = static_cast<PathFollowTrack *>(t);
+			return pft->values.size();
 		} break;
 	}
 
@@ -1916,6 +2050,17 @@ Variant Animation::track_get_key_value(int p_track, int p_key_idx) const {
 			ERR_FAIL_INDEX_V(p_key_idx, at->values.size(), Variant());
 
 			return at->values[p_key_idx].value;
+
+		} break;
+		case TYPE_PATH_FOLLOW: {
+			PathFollowTrack *pft = static_cast<PathFollowTrack *>(t);
+			ERR_FAIL_INDEX_V(p_key_idx, pft->values.size(), Variant());
+
+			Dictionary k;
+			k["motion_speed"] = pft->values[p_key_idx].value.motion_speed;
+			k["start_point"] = pft->values[p_key_idx].value.start_point;
+			k["end_point"] = pft->values[p_key_idx].value.end_point;
+			return k;
 
 		} break;
 	}
@@ -2004,6 +2149,12 @@ double Animation::track_get_key_time(int p_track, int p_key_idx) const {
 			AnimationTrack *at = static_cast<AnimationTrack *>(t);
 			ERR_FAIL_INDEX_V(p_key_idx, at->values.size(), -1);
 			return at->values[p_key_idx].time;
+
+		} break;
+		case TYPE_PATH_FOLLOW: {
+			PathFollowTrack *pft = static_cast<PathFollowTrack *>(t);
+			ERR_FAIL_INDEX_V(p_key_idx, pft->values.size(), -1);
+			return pft->values[p_key_idx].time;
 
 		} break;
 	}
@@ -2101,6 +2252,15 @@ void Animation::track_set_key_time(int p_track, int p_key_idx, double p_time) {
 			_insert(p_time, at->values, key);
 			return;
 		}
+		case TYPE_PATH_FOLLOW: {
+			PathFollowTrack *pft = static_cast<PathFollowTrack *>(t);
+			ERR_FAIL_INDEX(p_key_idx, pft->values.size());
+			TKey<PathFollowKey> key = pft->values[p_key_idx];
+			key.time = p_time;
+			pft->values.remove_at(p_key_idx);
+			_insert(p_time, pft->values, key);
+			return;
+		}
 	}
 
 	ERR_FAIL();
@@ -2163,6 +2323,9 @@ real_t Animation::track_get_key_transition(int p_track, int p_key_idx) const {
 		} break;
 		case TYPE_ANIMATION: {
 			return 1; //animation does not really use transitions
+		} break;
+		case TYPE_PATH_FOLLOW: {
+			return 1; //path follow does not really use transitions
 		} break;
 	}
 
@@ -2293,6 +2456,31 @@ void Animation::track_set_key_value(int p_track, int p_key_idx, const Variant &p
 			at->values.write[p_key_idx].value = p_value;
 
 		} break;
+		case TYPE_PATH_FOLLOW: {
+			PathFollowTrack *pft = static_cast<PathFollowTrack *>(t);
+			ERR_FAIL_INDEX(p_key_idx, pft->values.size());
+
+			Dictionary k = p_value;
+
+			TKey<PathFollowKey> pfk;
+			pfk.time = pft->values[p_key_idx].time;
+
+			if (k.has("motion_speed")) {
+				pfk.value.motion_speed = k["motion_speed"];
+			}
+			if (k.has("start_point")) {
+				pfk.value.start_point = k["start_point"];
+			}
+			if (k.has("end_point")) {
+				pfk.value.end_point = k["end_point"];
+			}
+
+			ERR_FAIL_COND(pfk.value.start_point < 0);
+			ERR_FAIL_COND(pfk.value.end_point > 0 && pfk.value.end_point < pfk.value.start_point);
+
+			pft->values.write[p_key_idx] = pfk;
+
+		} break;
 	}
 
 	emit_changed();
@@ -2341,7 +2529,8 @@ void Animation::track_set_key_transition(int p_track, int p_key_idx, real_t p_tr
 		} break;
 		case TYPE_BEZIER:
 		case TYPE_AUDIO:
-		case TYPE_ANIMATION: {
+		case TYPE_ANIMATION:
+		case TYPE_PATH_FOLLOW: {
 			// they don't use transition
 		} break;
 	}
@@ -2925,6 +3114,16 @@ void Animation::track_get_key_indices_in_range(int p_track, double p_time, doubl
 							_track_get_key_indices_in_range(an->values, from_time, anim_end, p_indices, is_backward);
 						}
 					} break;
+					case TYPE_PATH_FOLLOW: {
+						const PathFollowTrack *pft = static_cast<const PathFollowTrack *>(t);
+						if (!is_backward) {
+							_track_get_key_indices_in_range(pft->values, from_time, anim_end, p_indices, is_backward);
+							_track_get_key_indices_in_range(pft->values, anim_start, to_time, p_indices, is_backward);
+						} else {
+							_track_get_key_indices_in_range(pft->values, anim_start, to_time, p_indices, is_backward);
+							_track_get_key_indices_in_range(pft->values, from_time, anim_end, p_indices, is_backward);
+						}
+					} break;
 				}
 				return;
 			}
@@ -3020,6 +3219,11 @@ void Animation::track_get_key_indices_in_range(int p_track, double p_time, doubl
 						_track_get_key_indices_in_range(an->values, 0, from_time, p_indices, true);
 						_track_get_key_indices_in_range(an->values, 0, to_time, p_indices, false);
 					} break;
+					case TYPE_PATH_FOLLOW: {
+						const PathFollowTrack *pft = static_cast<const PathFollowTrack *>(t);
+						_track_get_key_indices_in_range(pft->values, 0, from_time, p_indices, true);
+						_track_get_key_indices_in_range(pft->values, 0, to_time, p_indices, false);
+					} break;
 				}
 				return;
 			}
@@ -3091,6 +3295,11 @@ void Animation::track_get_key_indices_in_range(int p_track, double p_time, doubl
 						_track_get_key_indices_in_range(an->values, from_time, length, p_indices, false);
 						_track_get_key_indices_in_range(an->values, to_time, length, p_indices, true);
 					} break;
+					case TYPE_PATH_FOLLOW: {
+						const PathFollowTrack *pft = static_cast<const PathFollowTrack *>(t);
+						_track_get_key_indices_in_range(pft->values, from_time, length, p_indices, false);
+						_track_get_key_indices_in_range(pft->values, to_time, length, p_indices, true);
+					} break;
 				}
 				return;
 			}
@@ -3155,6 +3364,10 @@ void Animation::track_get_key_indices_in_range(int p_track, double p_time, doubl
 		case TYPE_ANIMATION: {
 			const AnimationTrack *an = static_cast<const AnimationTrack *>(t);
 			_track_get_key_indices_in_range(an->values, from_time, to_time, p_indices, is_backward);
+		} break;
+		case TYPE_PATH_FOLLOW: {
+			const PathFollowTrack *pft = static_cast<const PathFollowTrack *>(t);
+			_track_get_key_indices_in_range(pft->values, from_time, to_time, p_indices, is_backward);
 		} break;
 	}
 }
@@ -3692,6 +3905,116 @@ StringName Animation::animation_track_get_key_animation(int p_track, int p_key) 
 	return at->values[p_key].value;
 }
 
+int Animation::path_follow_track_insert_key(int p_track, double p_time, real_t p_motion_speed, int p_start_point, int p_end_point) {
+	ERR_FAIL_INDEX_V(p_track, tracks.size(), -1);
+	Track *t = tracks[p_track];
+	ERR_FAIL_COND_V(t->type != TYPE_PATH_FOLLOW, -1);
+
+	PathFollowTrack *pft = static_cast<PathFollowTrack *>(t);
+
+	ERR_FAIL_COND_V(p_start_point < 0, -1);
+	ERR_FAIL_COND_V(p_end_point > 0 && p_end_point < p_start_point, -1);
+
+	TKey<PathFollowKey> k;
+	k.time = p_time;
+	k.value.motion_speed = p_motion_speed;
+	k.value.start_point = p_start_point;
+	k.value.end_point = p_end_point;
+
+	int key = _insert(p_time, pft->values, k);
+
+	emit_changed();
+
+	return key;
+}
+
+void Animation::path_follow_track_set_key_motion_speed(int p_track, int p_key, real_t p_motion_speed) {
+	ERR_FAIL_INDEX(p_track, tracks.size());
+	Track *t = tracks[p_track];
+	ERR_FAIL_COND(t->type != TYPE_PATH_FOLLOW);
+
+	PathFollowTrack *pft = static_cast<PathFollowTrack *>(t);
+
+	ERR_FAIL_INDEX(p_key, pft->values.size());
+
+	TKey<PathFollowKey> &k = pft->values.write[p_key];
+
+	k.value.motion_speed = p_motion_speed;
+
+	emit_changed();
+}
+
+void Animation::path_follow_track_set_key_start_point(int p_track, int p_key, int p_start_point) {
+	ERR_FAIL_INDEX(p_track, tracks.size());
+	Track *t = tracks[p_track];
+	ERR_FAIL_COND(t->type != TYPE_PATH_FOLLOW);
+
+	PathFollowTrack *pft = static_cast<PathFollowTrack *>(t);
+
+	ERR_FAIL_INDEX(p_key, pft->values.size());
+
+	TKey<PathFollowKey> &k = pft->values.write[p_key];
+
+	ERR_FAIL_COND(p_start_point < 0);
+	ERR_FAIL_COND(k.value.end_point > 0 && k.value.end_point < p_start_point);
+	k.value.start_point = p_start_point;
+
+	emit_changed();
+}
+
+void Animation::path_follow_track_set_key_end_point(int p_track, int p_key, int p_end_point) {
+	ERR_FAIL_INDEX(p_track, tracks.size());
+	Track *t = tracks[p_track];
+	ERR_FAIL_COND(t->type != TYPE_PATH_FOLLOW);
+
+	PathFollowTrack *pft = static_cast<PathFollowTrack *>(t);
+
+	ERR_FAIL_INDEX(p_key, pft->values.size());
+
+	TKey<PathFollowKey> &k = pft->values.write[p_key];
+
+	ERR_FAIL_COND(p_end_point > 0 && p_end_point < k.value.start_point);
+	k.value.end_point = p_end_point;
+
+	emit_changed();
+}
+
+real_t Animation::path_follow_track_get_key_motion_speed(int p_track, int p_key) const {
+	ERR_FAIL_INDEX_V(p_track, tracks.size(), 0);
+	const Track *t = tracks[p_track];
+	ERR_FAIL_COND_V(t->type != TYPE_PATH_FOLLOW, 0);
+
+	const PathFollowTrack *pft = static_cast<const PathFollowTrack *>(t);
+
+	ERR_FAIL_INDEX_V(p_key, pft->values.size(), 0);
+
+	return pft->values[p_key].value.motion_speed;
+}
+
+int Animation::path_follow_track_get_key_start_point(int p_track, int p_key) const {
+	ERR_FAIL_INDEX_V(p_track, tracks.size(), 0);
+	const Track *t = tracks[p_track];
+	ERR_FAIL_COND_V(t->type != TYPE_PATH_FOLLOW, 0);
+
+	const PathFollowTrack *pft = static_cast<const PathFollowTrack *>(t);
+
+	ERR_FAIL_INDEX_V(p_key, pft->values.size(), 0);
+
+	return pft->values[p_key].value.start_point;
+}
+
+int Animation::path_follow_track_get_key_end_point(int p_track, int p_key) const {
+	ERR_FAIL_INDEX_V(p_track, tracks.size(), 0);
+	const Track *t = tracks[p_track];
+	ERR_FAIL_COND_V(t->type != TYPE_PATH_FOLLOW, 0);
+
+	const PathFollowTrack *pft = static_cast<const PathFollowTrack *>(t);
+
+	ERR_FAIL_INDEX_V(p_key, pft->values.size(), 0);
+
+	return pft->values[p_key].value.end_point;
+}
+
 void Animation::set_length(real_t p_length) {
 	if (p_length < ANIM_MIN_LENGTH) {
 		p_length = ANIM_MIN_LENGTH;
@@ -3890,6 +4213,14 @@ void Animation::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("animation_track_set_key_animation", "track_idx", "key_idx", "animation"), &Animation::animation_track_set_key_animation);
 	ClassDB::bind_method(D_METHOD("animation_track_get_key_animation", "track_idx", "key_idx"), &Animation::animation_track_get_key_animation);
 
+	ClassDB::bind_method(D_METHOD("path_follow_track_insert_key", "track_idx", "time", "motion_speed", "start_point", "end_point"), &Animation::path_follow_track_insert_key, DEFVAL(1.0), DEFVAL(0), DEFVAL(-1));
+	ClassDB::bind_method(D_METHOD("path_follow_track_set_key_motion_speed", "track_idx", "key_idx", "motion_speed"), &Animation::path_follow_track_set_key_motion_speed);
+	ClassDB::bind_method(D_METHOD("path_follow_track_set_key_start_point", "track_idx", "key_idx", "start_point"), &Animation::path_follow_track_set_key_start_point);
+	ClassDB::bind_method(D_METHOD("path_follow_track_set_key_end_point", "track_idx", "key_idx", "end_point"), &Animation::path_follow_track_set_key_end_point);
+	ClassDB::bind_method(D_METHOD("path_follow_track_get_key_motion_speed", "track_idx", "key_idx"), &Animation::path_follow_track_get_key_motion_speed);
+	ClassDB::bind_method(D_METHOD("path_follow_track_get_key_start_point", "track_idx", "key_idx"), &Animation::path_follow_track_get_key_start_point);
+	ClassDB::bind_method(D_METHOD("path_follow_track_get_key_end_point", "track_idx", "key_idx"), &Animation::path_follow_track_get_key_end_point);
+
 	ClassDB::bind_method(D_METHOD("set_length", "time_sec"), &Animation::set_length);
 	ClassDB::bind_method(D_METHOD("get_length"), &Animation::get_length);
 
@@ -3920,6 +4251,7 @@ void Animation::_bind_methods() {
 	BIND_ENUM_CONSTANT(TYPE_BEZIER);
 	BIND_ENUM_CONSTANT(TYPE_AUDIO);
 	BIND_ENUM_CONSTANT(TYPE_ANIMATION);
+	BIND_ENUM_CONSTANT(TYPE_PATH_FOLLOW);
 
 	BIND_ENUM_CONSTANT(INTERPOLATION_NEAREST);
 	BIND_ENUM_CONSTANT(INTERPOLATION_LINEAR);

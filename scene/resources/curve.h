@@ -272,10 +272,7 @@ private:
 	};
 
 	Vector<Point> points;
-#ifdef TOOLS_ENABLED
-	// For Path3DGizmo.
 	mutable Vector<size_t> points_in_cache;
-#endif
 
 	mutable bool baked_cache_dirty = false;
 	mutable PackedVector3Array baked_point_cache;
@@ -370,6 +367,7 @@ public:
 	InterpolationMode get_twist_interpolation() const;
 
 	real_t get_baked_length() const;
+	real_t get_baked_distance(int p_index_from, int p_index_to = -1) const;
 	Vector3 sample_baked(real_t p_offset, bool p_cubic = false) const;
 	Transform3D sample_baked_with_rotation(real_t p_offset, bool p_cubic = false, bool p_apply_tilt = false, bool p_apply_twist = false) const;
 	real_t sample_baked_tilt(real_t p_offset) const;

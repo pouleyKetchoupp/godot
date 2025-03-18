@@ -39,6 +39,7 @@
 
 class CameraAttributes;
 class Camera3D;
+class PhysicsDirectSpaceState3D;
 class VisibleOnScreenNotifier3D;
 struct SpatialIndexer;
 

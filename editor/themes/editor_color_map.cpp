@@ -112,6 +112,7 @@ void EditorColorMap::create() {
 	add_conversion_color_pair("#eac840", "#bd9d1f"); // 3D Scale track
 	add_conversion_color_pair("#3cf34e", "#16a827"); // Call Method track
 	add_conversion_color_pair("#2877f6", "#236be6"); // Bezier Curve track
+	add_conversion_color_pair("#007d24", "#004211"); // Path Follow track
 	add_conversion_color_pair("#eae440", "#9f9722"); // Audio Playback track
 	add_conversion_color_pair("#a448f0", "#9853ce"); // Animation Playback track
 	add_conversion_color_pair("#5ad5c4", "#0a9c88"); // Blend Shape track

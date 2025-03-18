@@ -1582,9 +1582,7 @@ void Curve3D::_bake() const {
 	baked_cache_dirty = false;
 
 	if (points.size() == 0) {
-#ifdef TOOLS_ENABLED
 		points_in_cache.clear();
-#endif
 		baked_point_cache.clear();
 		baked_tilt_cache.clear();
 		baked_twist_cache.clear();
@@ -1596,10 +1594,8 @@ void Curve3D::_bake() const {
 	}
 
 	if (points.size() == 1) {
-#ifdef TOOLS_ENABLED
 		points_in_cache.resize(1);
 		points_in_cache.set(0, 0);
-#endif
 
 		baked_point_cache.resize(1);
 		baked_point_cache.set(0, points[0].position);
@@ -1626,18 +1622,14 @@ void Curve3D::_bake() const {
 	{
 		Vector<RBMap<real_t, Vector3>> midpoints = _tessellate_even_length(10, bake_interval);
 
-#ifdef TOOLS_ENABLED
 		points_in_cache.resize(points.size());
 		points_in_cache.set(0, 0);
-#endif
 
 		int pc = 1;
 		for (int i = 0; i < points.size() - 1; i++) {
 			pc++;
 			pc += midpoints[i].size();
-#ifdef TOOLS_ENABLED
 			points_in_cache.set(i + 1, pc - 1);
-#endif
 		}
 
 		baked_point_cache.resize(pc);
@@ -1773,6 +1765,37 @@ real_t Curve3D::get_baked_length() const {
 	}
 
 	return baked_max_ofs;
+}
+
+real_t Curve3D::get_baked_distance(int p_index_from, int p_index_to) const {
+	if (baked_cache_dirty) {
+		_bake();
+	}
+
+	const int point_count = points.size();
+
+	if (p_index_to < 0) {
+		p_index_to = point_count - 1;
+	}
+
+	ERR_FAIL_INDEX_V(p_index_from, point_count, 0.0);
+	ERR_FAIL_INDEX_V(p_index_to, point_count, 0.0);
+
+	if (p_index_from == 0 && p_index_to == point_count - 1) {
+		return baked_max_ofs;
+	}
+
+	const int baked_index_from = points_in_cache[p_index_from];
+	const int baked_index_to = points_in_cache[p_index_to];
+
+	const int cache_point_count = baked_dist_cache.size();
+	ERR_FAIL_INDEX_V(baked_index_from, cache_point_count, 0.0);
+	ERR_FAIL_INDEX_V(baked_index_to, cache_point_count, 0.0);
+
+	real_t offset_begin = baked_dist_cache[baked_index_from];
+	real_t offset_end = baked_dist_cache[baked_index_to];
+
+	return offset_end - offset_begin;
 }
 
 Curve3D::Interval Curve3D::_find_interval(real_t p_offset) const {

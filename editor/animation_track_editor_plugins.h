@@ -109,6 +109,24 @@ public:
 	void set_node(Object *p_object);
 };
 
+class AnimationTrackEditTypePathFollow : public AnimationTrackEdit {
+	GDCLASS(AnimationTrackEditTypePathFollow, AnimationTrackEdit);
+
+	ObjectID id;
+
+public:
+	virtual int get_key_height() const override;
+	virtual Rect2 get_key_rect(int p_index, float p_pixels_sec) override;
+	virtual bool is_key_selectable_by_distance() const override;
+	virtual void draw_key(int p_index, float p_pixels_sec, int p_x, bool p_selected, int p_clip_left, int p_clip_right) override;
+
+	void set_node(Object *p_object);
+	AnimationTrackEditTypePathFollow();
+
+private:
+	bool get_clip_length(int p_index, float &length) const;
+};
+
 class AnimationTrackEditTypeAudio : public AnimationTrackEdit {
 	GDCLASS(AnimationTrackEditTypeAudio, AnimationTrackEdit);
 
@@ -170,6 +188,7 @@ class AnimationTrackEditDefaultPlugin : public AnimationTrackEditPlugin {
 
 public:
 	virtual AnimationTrackEdit *create_value_track_edit(Object *p_object, Variant::Type p_type, const String &p_property, PropertyHint p_hint, const String &p_hint_string, int p_usage) override;
+	virtual AnimationTrackEdit *create_path_follow_track_edit(Object *p_object) override;
 	virtual AnimationTrackEdit *create_audio_track_edit() override;
 	virtual AnimationTrackEdit *create_animation_track_edit(Object *p_object) override;
 };

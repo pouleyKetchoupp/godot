@@ -44,6 +44,7 @@
 #include "scene/3d/audio_stream_player_3d.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/node_3d.h"
+#include "scene/3d/path_3d.h"
 #include "scene/3d/skeleton_3d.h"
 #include "scene/3d/skeleton_modifier_3d.h"
 #endif // _3D_DISABLED
@@ -852,6 +853,16 @@ bool AnimationMixer::_update_caches() {
 						track_animation->object_id = child->get_instance_id();
 
 						track = track_animation;
+
+					} break;
+					case Animation::TYPE_PATH_FOLLOW: {
+#ifndef _3D_DISABLED
+						TrackCachePathFollow *track_path_follow = memnew(TrackCachePathFollow);
+
+						track_path_follow->object_id = child->get_instance_id();
+
+						track = track_path_follow;
+#endif // _3D_DISABLED
 
 					} break;
 					default: {
@@ -1687,7 +1698,6 @@ void AnimationMixer::_blend_process(double p_delta, bool p_update_only) {
 						if (player2->is_playing() || !is_external_seeking) {
 							player2->play(anim_name);
 							player2->seek(at_anim_pos, false, p_update_only);
-							t->playing = true;
 							playing_caches.insert(t);
 						} else {
 							player2->set_assigned_animation(anim_name);
@@ -1704,15 +1714,83 @@ void AnimationMixer::_blend_process(double p_delta, bool p_update_only) {
 								if (playing_caches.has(t)) {
 									playing_caches.erase(t);
 									player2->stop();
-									t->playing = false;
 								}
 							} else {
 								player2->play(anim_name);
-								t->playing = true;
 								playing_caches.insert(t);
 							}
 						}
 					}
+				} break;
+				case Animation::TYPE_PATH_FOLLOW: {
+#ifndef _3D_DISABLED
+					if (Math::is_zero_approx(blend)) {
+						continue;
+					}
+					TrackCachePathFollow *t = static_cast<TrackCachePathFollow *>(track);
+					Object *t_obj = ObjectDB::get_instance(t->object_id);
+					if (!t_obj) {
+						continue;
+					}
+					PathFollow3D *path_follow = Object::cast_to<PathFollow3D>(t_obj);
+					if (!path_follow) {
+						continue;
+					}
+					const Path3D *path_node = Object::cast_to<Path3D>(path_follow->get_parent());
+					if (!path_node) {
+						continue;
+					}
+					const Curve3D *curve = *path_node->get_curve();
+					if (!curve) {
+						continue;
+					}
+
+					int idx = a->track_find_key(i, time, Animation::FIND_MODE_NEAREST, true);
+					if (idx < 0) {
+						continue;
+					}
+					double pos = a->track_get_key_time(i, idx);
+
+					const int max_point_count = curve->get_point_count();
+
+					int start_point = a->path_follow_track_get_key_start_point(i, idx);
+					if (start_point < 0) {
+						start_point = 0;
+					}
+					if (start_point >= max_point_count) {
+						start_point = max_point_count - 1;
+					}
+
+					int end_point = a->path_follow_track_get_key_end_point(i, idx);
+					if (end_point < 0 || end_point >= max_point_count) {
+						end_point = max_point_count - 1;
+					}
+
+					real_t path_length = 0.0f;
+					real_t path_offset = 0.0f;
+					if (start_point <= end_point) {
+						path_offset = curve->get_baked_distance(0, start_point);
+
+						const int point_count = end_point - start_point + 1;
+						if (point_count > 1) {
+							path_length = curve->get_baked_distance(start_point, end_point);
+						}
+					}
+
+					real_t clip_length = 0.0f;
+					const real_t motion_speed = a->path_follow_track_get_key_motion_speed(i, idx);
+					if (motion_speed > 0.0) {
+						clip_length = path_length / motion_speed;
+					}
+
+					if (!is_external_seeking && ((!backward && Animation::is_greater_or_equal_approx(time, pos + (double)clip_length)) || (backward && Animation::is_less_or_equal_approx(time, pos)))) {
+						continue; // Do nothing if current time is outside of length when started.
+					}
+					const double at_clip_pos = MIN((double)clip_length, time - pos); // Seek to end.
+
+					const real_t path_progress = path_offset + motion_speed * at_clip_pos;
+					path_follow->set_progress(path_progress);
+#endif // _3D_DISABLED
 				} break;
 			}
 		}
@@ -2409,7 +2487,8 @@ AnimationMixer::TrackCache *AnimatedValuesBackup::get_cache_copy(AnimationMixer:
 		}
 
 		case Animation::TYPE_METHOD:
-		case Animation::TYPE_ANIMATION: {
+		case Animation::TYPE_ANIMATION:
+		case Animation::TYPE_PATH_FOLLOW: {
 			// Nothing to do here.
 		} break;
 	}

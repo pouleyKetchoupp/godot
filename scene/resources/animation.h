@@ -55,6 +55,7 @@ public:
 		TYPE_BEZIER, // Bezier curve.
 		TYPE_AUDIO,
 		TYPE_ANIMATION,
+		TYPE_PATH_FOLLOW, // Transform following a path.
 	};
 
 	enum InterpolationType {
@@ -235,6 +236,22 @@ private:
 		AnimationTrack() {
 			type = TYPE_ANIMATION;
 		}
+	};
+
+	/* PATH FOLLOW TRACK */
+
+	struct PathFollowKey {
+		real_t motion_speed = 1.0;
+		int start_point = 0;
+		int end_point = -1;
+		PathFollowKey() {
+		}
+	};
+
+	struct PathFollowTrack : public Track {
+		Vector<TKey<PathFollowKey>> values;
+
+		PathFollowTrack() { type = TYPE_PATH_FOLLOW; }
 	};
 
 	Vector<Track *> tracks;
@@ -482,6 +499,14 @@ public:
 	int animation_track_insert_key(int p_track, double p_time, const StringName &p_animation);
 	void animation_track_set_key_animation(int p_track, int p_key, const StringName &p_animation);
 	StringName animation_track_get_key_animation(int p_track, int p_key) const;
+
+	int path_follow_track_insert_key(int p_track, double p_time, real_t p_motion_speed = 1.0, int p_start_point = 0, int p_end_point = -1);
+	void path_follow_track_set_key_motion_speed(int p_track, int p_key, real_t p_motion_speed);
+	void path_follow_track_set_key_start_point(int p_track, int p_key, int p_start_point);
+	void path_follow_track_set_key_end_point(int p_track, int p_key, int p_end_point);
+	real_t path_follow_track_get_key_motion_speed(int p_track, int p_key) const;
+	int path_follow_track_get_key_start_point(int p_track, int p_key) const;
+	int path_follow_track_get_key_end_point(int p_track, int p_key) const;
 
 	void track_set_interpolation_loop_wrap(int p_track, bool p_enable);
 	bool track_get_interpolation_loop_wrap(int p_track) const;
