@@ -409,6 +409,22 @@ bool AnimationTrackKeyEdit::_set(const StringName &p_name, const Variant &p_valu
 				return true;
 			}
 
+			if (name == "motion_speed_curve") {
+				Ref<Curve> curve = p_value;
+
+				setting = true;
+				undo_redo->create_action(TTR("Animation Change Keyframe Value"), UndoRedo::MERGE_ENDS);
+				Ref<Resource> prev = animation->path_follow_track_get_key_motion_speed_curve(track, key);
+				undo_redo->add_do_method(animation.ptr(), "path_follow_track_set_key_motion_speed_curve", track, key, curve);
+				undo_redo->add_undo_method(animation.ptr(), "path_follow_track_set_key_motion_speed_curve", track, key, prev);
+				undo_redo->add_do_method(this, "_update_obj", animation);
+				undo_redo->add_undo_method(this, "_update_obj", animation);
+				undo_redo->commit_action();
+
+				setting = false;
+				return true;
+			}
+
 			if (name == "start_point") {
 				const int value = p_value;
 
@@ -560,6 +576,11 @@ bool AnimationTrackKeyEdit::_get(const StringName &p_name, Variant &r_ret) const
 				return true;
 			}
 
+			if (name == "motion_speed_curve") {
+				r_ret = animation->path_follow_track_get_key_motion_speed_curve(track, key);
+				return true;
+			}
+
 			if (name == "start_point") {
 				r_ret = animation->path_follow_track_get_key_start_point(track, key);
 				return true;
@@ -708,6 +729,7 @@ void AnimationTrackKeyEdit::_get_property_list(List<PropertyInfo> *p_list) const
 					}
 				}
 			}
+			p_list->push_back(PropertyInfo(Variant::OBJECT, PNAME("motion_speed_curve"), PROPERTY_HINT_RESOURCE_TYPE, "Curve"));
 			String hint_string_speed = PNAME("0,10.0f,0.001,or_greater");
 			p_list->push_back(PropertyInfo(Variant::FLOAT, PNAME("motion_speed"), PROPERTY_HINT_RANGE, hint_string_speed));
 			String hint_string_point_start = vformat("0,%d", point_count ? point_count - 1 : 0);
@@ -1046,6 +1068,17 @@ bool AnimationMultiTrackKeyEdit::_set(const StringName &p_name, const Variant &p
 						undo_redo->add_do_method(animation.ptr(), "path_follow_track_set_key_motion_speed", track, key, value);
 						undo_redo->add_undo_method(animation.ptr(), "path_follow_track_set_key_motion_speed", track, key, prev);
 						update_obj = true;
+					} else if (name == "motion_speed_curve") {
+						Ref<Curve> curve = p_value;
+
+						if (!setting) {
+							setting = true;
+							undo_redo->create_action(TTR("Animation Multi Change Keyframe Value"), UndoRedo::MERGE_ENDS);
+						}
+						Ref<Resource> prev = animation->path_follow_track_get_key_motion_speed_curve(track, key);
+						undo_redo->add_do_method(animation.ptr(), "path_follow_track_set_key_motion_speed_curve", track, key, curve);
+						undo_redo->add_undo_method(animation.ptr(), "path_follow_track_set_key_motion_speed_curve", track, key, prev);
+						update_obj = true;
 					} else if (name == "start_point") {
 						const int value = p_value;
 
@@ -1209,6 +1242,11 @@ bool AnimationMultiTrackKeyEdit::_get(const StringName &p_name, Variant &r_ret) 
 				case Animation::TYPE_PATH_FOLLOW: {
 					if (name == "motion_speed") {
 						r_ret = animation->path_follow_track_get_key_motion_speed(track, key);
+						return true;
+					}
+
+					if (name == "motion_speed_curve") {
+						r_ret = animation->path_follow_track_get_key_motion_speed_curve(track, key);
 						return true;
 					}
 
@@ -1388,6 +1426,7 @@ void AnimationMultiTrackKeyEdit::_get_property_list(List<PropertyInfo> *p_list) 
 						}
 					}
 				}
+				p_list->push_back(PropertyInfo(Variant::OBJECT, PNAME("motion_speed_curve"), PROPERTY_HINT_RESOURCE_TYPE, "Curve"));
 				String hint_string_speed = PNAME("0,10.0f,0.001,or_greater");
 				p_list->push_back(PropertyInfo(Variant::FLOAT, PNAME("motion_speed"), PROPERTY_HINT_RANGE, hint_string_speed));
 				String hint_string_point_start = vformat("0,%d", point_count ? point_count - 1 : 0);
@@ -2911,8 +2950,21 @@ String AnimationTrackEdit::get_tooltip(const Point2 &p_pos) const {
 					text += TTR("Animation Clip:") + " " + name + "\n";
 				} break;
 				case Animation::TYPE_PATH_FOLLOW: {
+					String curve_name = "null";
+					Ref<Resource> curve = animation->path_follow_track_get_key_motion_speed_curve(track, key_idx);
+					if (curve.is_valid()) {
+						if (curve->get_path().is_resource_file()) {
+							curve_name = curve->get_path().get_file();
+						} else if (!curve->get_name().is_empty()) {
+							curve_name = curve->get_name();
+						} else {
+							curve_name = curve->get_class();
+						}
+					}
+
 					const real_t motion_speed = animation->path_follow_track_get_key_motion_speed(track, key_idx);
 					text += TTR("Motion speed:") + " " + rtos(motion_speed) + "\n";
+					text += TTR("Motion speed curve:") + " " + curve_name + "\n";
 
 					const int start_point = animation->path_follow_track_get_key_start_point(track, key_idx);
 					text += TTR("From point:") + " " + itos(start_point) + "\n";
@@ -5523,6 +5575,7 @@ void AnimationTrackEditor::_insert_key_from_track(float p_ofs, int p_track) {
 		case Animation::TYPE_PATH_FOLLOW: {
 			Dictionary pfk;
 			pfk["motion_speed"] = 1.0;
+			pfk["motion_speed_curve"] = Ref<Resource>();
 			pfk["start_point"] = 0;
 			pfk["end_point"] = -1;
 

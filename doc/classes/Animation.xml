@@ -311,6 +311,15 @@
 				The motion speed is used for animating the target [PathFollow3D] along its parent [Path3D]. It affects the length of the clip.
 			</description>
 		</method>
+		<method name="path_follow_track_get_key_motion_speed_curve" qualifiers="const">
+			<return type="Resource" />
+			<param index="0" name="track_idx" type="int" />
+			<param index="1" name="key_idx" type="int" />
+			<description>
+				Returns the motion speed [Curve] of the key identified by [param key_idx]. The [param track_idx] must be the index of a Path Follow Track.
+				The motion speed [Curve] is used to adjust motion speed for animating the target [PathFollow3D] along its parent [Path3D]. It affects the length of the clip.
+			</description>
+		</method>
 		<method name="path_follow_track_get_key_start_point" qualifiers="const">
 			<return type="int" />
 			<param index="0" name="track_idx" type="int" />
@@ -325,11 +334,13 @@
 			<param index="0" name="track_idx" type="int" />
 			<param index="1" name="time" type="float" />
 			<param index="2" name="motion_speed" type="float" default="1.0" />
-			<param index="3" name="start_point" type="int" default="0" />
-			<param index="4" name="end_point" type="int" default="-1" />
+			<param index="3" name="motion_speed_curve" type="Resource" default="null" />
+			<param index="4" name="start_point" type="int" default="0" />
+			<param index="5" name="end_point" type="int" default="-1" />
 			<description>
 				Inserts a Path Follow Track key at the given [param time] in seconds. The [param track_idx] must be the index of an Path Follow Track.
 				[param motion_speed] is the motion speed in [code]m/s[/code] used for animating the target [PathFollow3D] along its parent [Path3D]. It affects the length of the clip.
+				[param motion_speed_curve] is the optional [Curve] used to adjust motion speed for animating the target [PathFollow3D] along its parent [Path3D]. It affects the length of the clip.
 				The target [PathFollow3D] will be animated between [param start_point] and [param end_point] along its parent [Path3D].
 				[param start_point] defaults to [code]0[/code] to use the first point from the path.
 				[param end_point] defaults to [code]-1[/code] to use the last point from the path.
@@ -353,6 +364,16 @@
 			<description>
 				Sets the motion speed of the key identified by [param key_idx]. The [param track_idx] must be the index of an Path Follow Track.
 				The motion speed in [code]m/s[/code] is used for animating the target [PathFollow3D] along its parent [Path3D]. It affects the length of the clip.
+			</description>
+		</method>
+		<method name="path_follow_track_set_key_motion_speed_curve">
+			<return type="void" />
+			<param index="0" name="track_idx" type="int" />
+			<param index="1" name="key_idx" type="int" />
+			<param index="2" name="motion_speed_curve" type="Resource" />
+			<description>
+				Sets the motion speed [Curve] of the key identified by [param key_idx]. The [param track_idx] must be the index of a Path Follow Track.
+				The motion speed [Curve] is used to adjust motion speed for animating the target [PathFollow3D] along its parent [Path3D]. It affects the length of the clip.
 			</description>
 		</method>
 		<method name="path_follow_track_set_key_start_point">

@@ -450,6 +450,9 @@ bool Animation::_set(const StringName &p_name, const Variant &p_value) {
 						if (d2.has("motion_speed")) {
 							pfk.value.motion_speed = d2["motion_speed"];
 						}
+						if (d2.has("motion_speed_curve")) {
+							pfk.value.motion_speed_curve = d2["motion_speed_curve"];
+						}
 						if (d2.has("start_point")) {
 							pfk.value.start_point = d2["start_point"];
 						}
@@ -888,6 +891,7 @@ bool Animation::_get(const StringName &p_name, Variant &r_ret) const {
 					wti[idx] = vls[i].time;
 					Dictionary clip;
 					clip["motion_speed"] = vls[i].value.motion_speed;
+					clip["motion_speed_curve"] = vls[i].value.motion_speed_curve;
 					clip["start_point"] = vls[i].value.start_point;
 					clip["end_point"] = vls[i].value.end_point;
 					clips.push_back(clip);
@@ -1897,6 +1901,9 @@ int Animation::track_insert_key(int p_track, double p_time, const Variant &p_key
 			if (k.has("motion_speed")) {
 				pfk.value.motion_speed = k["motion_speed"];
 			}
+			if (k.has("motion_speed_curve")) {
+				pfk.value.motion_speed_curve = k["motion_speed_curve"];
+			}
 			if (k.has("start_point")) {
 				pfk.value.start_point = k["start_point"];
 			}
@@ -2058,6 +2065,7 @@ Variant Animation::track_get_key_value(int p_track, int p_key_idx) const {
 
 			Dictionary k;
 			k["motion_speed"] = pft->values[p_key_idx].value.motion_speed;
+			k["motion_speed_curve"] = pft->values[p_key_idx].value.motion_speed_curve;
 			k["start_point"] = pft->values[p_key_idx].value.start_point;
 			k["end_point"] = pft->values[p_key_idx].value.end_point;
 			return k;
@@ -2467,6 +2475,9 @@ void Animation::track_set_key_value(int p_track, int p_key_idx, const Variant &p
 
 			if (k.has("motion_speed")) {
 				pfk.value.motion_speed = k["motion_speed"];
+			}
+			if (k.has("motion_speed_curve")) {
+				pfk.value.motion_speed = k["motion_speed_curve"];
 			}
 			if (k.has("start_point")) {
 				pfk.value.start_point = k["start_point"];
@@ -3905,7 +3916,7 @@ StringName Animation::animation_track_get_key_animation(int p_track, int p_key) 
 	return at->values[p_key].value;
 }
 
-int Animation::path_follow_track_insert_key(int p_track, double p_time, real_t p_motion_speed, int p_start_point, int p_end_point) {
+int Animation::path_follow_track_insert_key(int p_track, double p_time, real_t p_motion_speed, const Ref<Resource> &p_motion_speed_curve, int p_start_point, int p_end_point) {
 	ERR_FAIL_INDEX_V(p_track, tracks.size(), -1);
 	Track *t = tracks[p_track];
 	ERR_FAIL_COND_V(t->type != TYPE_PATH_FOLLOW, -1);
@@ -3918,6 +3929,7 @@ int Animation::path_follow_track_insert_key(int p_track, double p_time, real_t p
 	TKey<PathFollowKey> k;
 	k.time = p_time;
 	k.value.motion_speed = p_motion_speed;
+	k.value.motion_speed_curve = p_motion_speed_curve;
 	k.value.start_point = p_start_point;
 	k.value.end_point = p_end_point;
 
@@ -3940,6 +3952,22 @@ void Animation::path_follow_track_set_key_motion_speed(int p_track, int p_key, r
 	TKey<PathFollowKey> &k = pft->values.write[p_key];
 
 	k.value.motion_speed = p_motion_speed;
+
+	emit_changed();
+}
+
+void Animation::path_follow_track_set_key_motion_speed_curve(int p_track, int p_key, const Ref<Resource> &p_motion_speed_curve) {
+	ERR_FAIL_INDEX(p_track, tracks.size());
+	Track *t = tracks[p_track];
+	ERR_FAIL_COND(t->type != TYPE_PATH_FOLLOW);
+
+	PathFollowTrack *pft = static_cast<PathFollowTrack *>(t);
+
+	ERR_FAIL_INDEX(p_key, pft->values.size());
+
+	TKey<PathFollowKey> &k = pft->values.write[p_key];
+
+	k.value.motion_speed_curve = p_motion_speed_curve;
 
 	emit_changed();
 }
@@ -3989,6 +4017,18 @@ real_t Animation::path_follow_track_get_key_motion_speed(int p_track, int p_key)
 	ERR_FAIL_INDEX_V(p_key, pft->values.size(), 0);
 
 	return pft->values[p_key].value.motion_speed;
+}
+
+Ref<Resource> Animation::path_follow_track_get_key_motion_speed_curve(int p_track, int p_key) const {
+	ERR_FAIL_INDEX_V(p_track, tracks.size(), 0);
+	const Track *t = tracks[p_track];
+	ERR_FAIL_COND_V(t->type != TYPE_PATH_FOLLOW, 0);
+
+	const PathFollowTrack *pft = static_cast<const PathFollowTrack *>(t);
+
+	ERR_FAIL_INDEX_V(p_key, pft->values.size(), 0);
+
+	return pft->values[p_key].value.motion_speed_curve;
 }
 
 int Animation::path_follow_track_get_key_start_point(int p_track, int p_key) const {
@@ -4213,11 +4253,13 @@ void Animation::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("animation_track_set_key_animation", "track_idx", "key_idx", "animation"), &Animation::animation_track_set_key_animation);
 	ClassDB::bind_method(D_METHOD("animation_track_get_key_animation", "track_idx", "key_idx"), &Animation::animation_track_get_key_animation);
 
-	ClassDB::bind_method(D_METHOD("path_follow_track_insert_key", "track_idx", "time", "motion_speed", "start_point", "end_point"), &Animation::path_follow_track_insert_key, DEFVAL(1.0), DEFVAL(0), DEFVAL(-1));
+	ClassDB::bind_method(D_METHOD("path_follow_track_insert_key", "track_idx", "time", "motion_speed", "motion_speed_curve", "start_point", "end_point"), &Animation::path_follow_track_insert_key, DEFVAL(1.0), DEFVAL(Ref<Resource>()), DEFVAL(0), DEFVAL(-1));
 	ClassDB::bind_method(D_METHOD("path_follow_track_set_key_motion_speed", "track_idx", "key_idx", "motion_speed"), &Animation::path_follow_track_set_key_motion_speed);
+	ClassDB::bind_method(D_METHOD("path_follow_track_set_key_motion_speed_curve", "track_idx", "key_idx", "motion_speed_curve"), &Animation::path_follow_track_set_key_motion_speed_curve);
 	ClassDB::bind_method(D_METHOD("path_follow_track_set_key_start_point", "track_idx", "key_idx", "start_point"), &Animation::path_follow_track_set_key_start_point);
 	ClassDB::bind_method(D_METHOD("path_follow_track_set_key_end_point", "track_idx", "key_idx", "end_point"), &Animation::path_follow_track_set_key_end_point);
 	ClassDB::bind_method(D_METHOD("path_follow_track_get_key_motion_speed", "track_idx", "key_idx"), &Animation::path_follow_track_get_key_motion_speed);
+	ClassDB::bind_method(D_METHOD("path_follow_track_get_key_motion_speed_curve", "track_idx", "key_idx"), &Animation::path_follow_track_get_key_motion_speed_curve);
 	ClassDB::bind_method(D_METHOD("path_follow_track_get_key_start_point", "track_idx", "key_idx"), &Animation::path_follow_track_get_key_start_point);
 	ClassDB::bind_method(D_METHOD("path_follow_track_get_key_end_point", "track_idx", "key_idx"), &Animation::path_follow_track_get_key_end_point);
 

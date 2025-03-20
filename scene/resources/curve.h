@@ -128,9 +128,11 @@ public:
 	void set_data(Array input);
 
 	void bake();
+	void bake_areas();
 	int get_bake_resolution() const { return _bake_resolution; }
 	void set_bake_resolution(int p_resolution);
 	real_t sample_baked(real_t p_offset) const;
+	real_t sample_baked_area(real_t p_offset) const;
 
 	void ensure_default_setup(real_t p_min, real_t p_max);
 
@@ -152,7 +154,9 @@ private:
 
 	Vector<Point> _points;
 	bool _baked_cache_dirty = false;
+	bool _baked_cache_areas_dirty = false;
 	Vector<real_t> _baked_cache;
+	Vector<real_t> _baked_cache_areas;
 	int _bake_resolution = 100;
 	real_t _min_value = 0.0;
 	real_t _max_value = 1.0;

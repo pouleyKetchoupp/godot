@@ -1783,12 +1783,33 @@ void AnimationMixer::_blend_process(double p_delta, bool p_update_only) {
 						clip_length = path_length / motion_speed;
 					}
 
+					Ref<Curve> motion_speed_curve = a->path_follow_track_get_key_motion_speed_curve(i, idx);
+					if (motion_speed_curve.is_valid()) {
+						// Re-adjust length based on the motion curve
+						const real_t total_curve_area = motion_speed_curve->sample_baked_area(1.0);
+						const real_t average_motion_speed_ratio = total_curve_area / (Curve::MAX_X - Curve::MIN_X);
+						if (average_motion_speed_ratio > 0.0) {
+							clip_length /= average_motion_speed_ratio;
+						} else {
+							clip_length = 0.0;
+						}
+					}
+
 					if (!is_external_seeking && ((!backward && Animation::is_greater_or_equal_approx(time, pos + (double)clip_length)) || (backward && Animation::is_less_or_equal_approx(time, pos)))) {
 						continue; // Do nothing if current time is outside of length when started.
 					}
 					const double at_clip_pos = MIN((double)clip_length, time - pos); // Seek to end.
 
-					const real_t path_progress = path_offset + motion_speed * at_clip_pos;
+					real_t path_delta = motion_speed * at_clip_pos;
+					if (motion_speed_curve.is_valid()) {
+						// Adjust path delta based on the motion curve
+						const real_t clip_pos_ratio = at_clip_pos / clip_length;
+						const real_t pos_curve_area = motion_speed_curve->sample_baked_area(clip_pos_ratio);
+						const real_t average_motion_speed_ratio = pos_curve_area / (clip_pos_ratio - Curve::MIN_X);
+						path_delta *= average_motion_speed_ratio;
+					}
+
+					const real_t path_progress = path_offset + path_delta;
 					path_follow->set_progress(path_progress);
 #endif // _3D_DISABLED
 				} break;

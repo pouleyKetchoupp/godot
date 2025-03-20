@@ -849,6 +849,19 @@ bool AnimationTrackEditTypePathFollow::get_clip_length(int p_index, float &lengt
 
 	const real_t path_length = curve->get_baked_distance(start_point, end_point);
 	length = path_length / motion_speed;
+
+	Ref<Curve> motion_speed_curve = get_animation()->path_follow_track_get_key_motion_speed_curve(get_track(), p_index);
+	if (motion_speed_curve.is_valid()) {
+		// Re-adjust length based on the motion curve
+		const real_t total_curve_area = motion_speed_curve->sample_baked_area(1.0);
+		const real_t average_motion_speed_ratio = total_curve_area / (Curve::MAX_X - Curve::MIN_X);
+		if (average_motion_speed_ratio > 0.0) {
+			length /= average_motion_speed_ratio;
+		} else {
+			length = 0.0;
+		}
+	}
+
 	return true;
 }
 

@@ -242,6 +242,7 @@ private:
 
 	struct PathFollowKey {
 		real_t motion_speed = 1.0;
+		Ref<Resource> motion_speed_curve;
 		int start_point = 0;
 		int end_point = -1;
 		PathFollowKey() {
@@ -500,11 +501,13 @@ public:
 	void animation_track_set_key_animation(int p_track, int p_key, const StringName &p_animation);
 	StringName animation_track_get_key_animation(int p_track, int p_key) const;
 
-	int path_follow_track_insert_key(int p_track, double p_time, real_t p_motion_speed = 1.0, int p_start_point = 0, int p_end_point = -1);
+	int path_follow_track_insert_key(int p_track, double p_time, real_t p_motion_speed = 1.0, const Ref<Resource> &p_motion_speed_curve = Ref<Resource>(), int p_start_point = 0, int p_end_point = -1);
 	void path_follow_track_set_key_motion_speed(int p_track, int p_key, real_t p_motion_speed);
+	void path_follow_track_set_key_motion_speed_curve(int p_track, int p_key, const Ref<Resource> &p_motion_speed_curve);
 	void path_follow_track_set_key_start_point(int p_track, int p_key, int p_start_point);
 	void path_follow_track_set_key_end_point(int p_track, int p_key, int p_end_point);
 	real_t path_follow_track_get_key_motion_speed(int p_track, int p_key) const;
+	Ref<Resource> path_follow_track_get_key_motion_speed_curve(int p_track, int p_key) const;
 	int path_follow_track_get_key_start_point(int p_track, int p_key) const;
 	int path_follow_track_get_key_end_point(int p_track, int p_key) const;
 

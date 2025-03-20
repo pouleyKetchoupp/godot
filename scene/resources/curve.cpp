@@ -454,22 +454,62 @@ void Curve::set_data(const Array p_input) {
 }
 
 void Curve::bake() {
+	ERR_FAIL_COND(!_baked_cache_dirty);
+
 	_baked_cache.clear();
+	_baked_cache_areas.clear();
+
+	if (_points.is_empty()) {
+		_baked_cache_dirty = false;
+		_baked_cache_areas_dirty = false;
+		return;
+	}
+
+	_baked_cache_areas_dirty = true;
 
 	_baked_cache.resize(_bake_resolution);
 
+	_baked_cache.write[0] = _points[0].position.y;
+	_baked_cache.write[_baked_cache.size() - 1] = _points[_points.size() - 1].position.y;
+
+	const real_t segment_size = 1.0 / static_cast<real_t>(_bake_resolution - 1);
+
 	for (int i = 1; i < _bake_resolution - 1; ++i) {
-		real_t x = i / static_cast<real_t>(_bake_resolution - 1);
-		real_t y = sample(x);
+		const real_t x = i * segment_size;
+		const real_t y = sample(x);
 		_baked_cache.write[i] = y;
 	}
 
-	if (_points.size() != 0) {
-		_baked_cache.write[0] = _points[0].position.y;
-		_baked_cache.write[_baked_cache.size() - 1] = _points[_points.size() - 1].position.y;
+	_baked_cache_dirty = false;
+}
+
+void Curve::bake_areas() {
+	ERR_FAIL_COND(_baked_cache_dirty);
+	ERR_FAIL_COND(!_baked_cache_areas_dirty);
+
+	_baked_cache_areas.clear();
+
+	if (_baked_cache.is_empty()) {
+		_baked_cache_areas_dirty = false;
+		return;
 	}
 
-	_baked_cache_dirty = false;
+	_baked_cache_areas.resize(_baked_cache.size());
+
+	const real_t segment_size = 1.0 / static_cast<real_t>(_bake_resolution - 1);
+
+	real_t total_bake_area = 0.0;
+	real_t prev_y = _baked_cache[0];
+	for (int i = 1; i < _bake_resolution; ++i) {
+		const real_t y = _baked_cache[i];
+		_baked_cache_areas.write[i - 1] = total_bake_area;
+		total_bake_area += 0.5 * (y + prev_y) * segment_size;
+		prev_y = y;
+	}
+
+	_baked_cache_areas.write[_bake_resolution - 1] = total_bake_area;
+
+	_baked_cache_areas_dirty = false;
 }
 
 void Curve::set_bake_resolution(int p_resolution) {
@@ -512,6 +552,47 @@ real_t Curve::sample_baked(real_t p_offset) const {
 		return Math::lerp(_baked_cache[i], _baked_cache[i + 1], t);
 	} else {
 		return _baked_cache[_baked_cache.size() - 1];
+	}
+}
+
+real_t Curve::sample_baked_area(real_t p_offset) const {
+	if (_baked_cache_dirty) {
+		// Last-second bake if not done already
+		const_cast<Curve *>(this)->bake();
+	}
+
+	if (_baked_cache_areas_dirty) {
+		// Last-second bake if not done already
+		const_cast<Curve *>(this)->bake_areas();
+	}
+
+	// Special cases if the cache is too small
+	if (_baked_cache_areas.size() == 0) {
+		if (_points.size() == 0) {
+			return 0;
+		}
+		return _points[0].position.y;
+	} else if (_baked_cache_areas.size() == 1) {
+		return _baked_cache_areas[0];
+	}
+
+	// Get interpolation index
+	real_t fi = p_offset * (_baked_cache_areas.size() - 1);
+	int i = Math::floor(fi);
+	if (i < 0) {
+		i = 0;
+		fi = 0;
+	} else if (i >= _baked_cache_areas.size()) {
+		i = _baked_cache_areas.size() - 1;
+		fi = 0;
+	}
+
+	// Sample
+	if (i + 1 < _baked_cache_areas.size()) {
+		real_t t = fi - i;
+		return Math::lerp(_baked_cache_areas[i], _baked_cache_areas[i + 1], t);
+	} else {
+		return _baked_cache_areas[_baked_cache_areas.size() - 1];
 	}
 }
 
