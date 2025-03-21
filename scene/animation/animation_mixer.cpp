@@ -945,12 +945,12 @@ bool AnimationMixer::_update_caches() {
 /* -- Blending processor ---------------------- */
 /* -------------------------------------------- */
 
-void AnimationMixer::_process_animation(double p_delta, bool p_update_only) {
+void AnimationMixer::_process_animation(double p_delta, bool p_update, bool p_update_only) {
 	_blend_init();
 	if (_blend_pre_process(p_delta, track_count, track_map)) {
 		_blend_capture(p_delta);
 		_blend_calc_total_weight();
-		_blend_process(p_delta, p_update_only);
+		_blend_process(p_delta, p_update, p_update_only);
 		_blend_apply();
 		_blend_post_process();
 		emit_signal(SNAME("mixer_applied"));
@@ -1113,7 +1113,7 @@ void AnimationMixer::_blend_calc_total_weight() {
 	}
 }
 
-void AnimationMixer::_blend_process(double p_delta, bool p_update_only) {
+void AnimationMixer::_blend_process(double p_delta, bool p_update, bool p_update_only) {
 	// Apply value/transform/blend/bezier blends to track caches and execute method/audio/animation tracks.
 #ifdef TOOLS_ENABLED
 	bool can_call = is_inside_tree() && !Engine::get_singleton()->is_editor_hint();
@@ -1697,7 +1697,7 @@ void AnimationMixer::_blend_process(double p_delta, bool p_update_only) {
 						}
 						if (player2->is_playing() || !is_external_seeking) {
 							player2->play(anim_name);
-							player2->seek(at_anim_pos, false, p_update_only);
+							player2->seek(at_anim_pos, p_update, p_update_only);
 							playing_caches.insert(t);
 						} else {
 							player2->set_assigned_animation(anim_name);

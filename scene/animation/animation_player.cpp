@@ -607,7 +607,7 @@ void AnimationPlayer::seek_internal(double p_time, bool p_update, bool p_update_
 	playback.internal_seeked = p_is_internal_seek;
 
 	if (p_update) {
-		_process_animation(is_backward ? -0.0 : 0.0, p_update_only);
+		_process_animation(is_backward ? -0.0 : 0.0, p_update, p_update_only);
 		playback.seeked = false; // If animation was proceeded here, no more seek in internal process.
 	}
 }

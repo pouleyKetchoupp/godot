@@ -358,7 +358,7 @@ protected:
 	virtual void _rename_animation(const StringName &p_from_name, const StringName &p_to_name);
 
 	/* ---- Blending processor ---- */
-	virtual void _process_animation(double p_delta, bool p_update_only = false);
+	virtual void _process_animation(double p_delta, bool p_update = false, bool p_update_only = false);
 
 	// For post process with retrieved key value during blending.
 	virtual Variant _post_process_key_value(const Ref<Animation> &p_anim, int p_track, Variant p_value, ObjectID p_object_id, int p_object_sub_idx = -1);
@@ -369,7 +369,7 @@ protected:
 	virtual bool _blend_pre_process(double p_delta, int p_track_count, const HashMap<NodePath, int> &p_track_map);
 	virtual void _blend_capture(double p_delta);
 	void _blend_calc_total_weight(); // For undeterministic blending.
-	void _blend_process(double p_delta, bool p_update_only = false);
+	void _blend_process(double p_delta, bool p_update = false, bool p_update_only = false);
 	void _blend_apply();
 	virtual void _blend_post_process();
 	void _call_object(ObjectID p_object_id, const StringName &p_method, const Vector<Variant> &p_params, bool p_deferred);

@@ -23,4 +23,5 @@ Tetris: 2024.12.31 [Physics] Allow indirect parenting for shapes
 2025.03.15 [Misc] Update version history
 2025.03.15 [Nodes] Fix compilation warnings and doc for Curve3D
 2025.03.17 [Animation] Add path follow animation track type to animate PathFollow3D
-Pepper: 2025.03.19 [Animation] Add motion speed curve parameter to path follow animation keys
+2025.03.19 [Animation] Add motion speed curve parameter to path follow animation keys
+Pepper: 2025.03.20 [Animation] Fix animation seek() within another animation player
